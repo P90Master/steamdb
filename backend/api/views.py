@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from api.serializers import GameSerializer
+from api.serializers import GameSerializer, GameUpdateSerializer
 from games.documents import Game
 
 
@@ -26,6 +26,7 @@ class GamesView(APIView):
 
 class GameDetailView(APIView):
     serializer_class = GameSerializer
+    serializer_update_class = GameUpdateSerializer
 
     # TODO PoC
     @staticmethod
@@ -53,3 +54,16 @@ class GameDetailView(APIView):
 
         game.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def patch(self, request, game_id):
+        try:
+            game = Game.objects.get(id=game_id)
+        except DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.serializer_update_class(game, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
