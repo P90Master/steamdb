@@ -13,7 +13,7 @@ class GamePrice(EmbeddedDocument):
 
 
 class Game(Document):
-    game_id = fields.StringField(primary_key=True)
+    id = fields.IntField(primary_key=True)
     name = fields.StringField(required=True)
     prices = fields.EmbeddedDocumentListField(GamePrice)
 
