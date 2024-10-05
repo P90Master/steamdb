@@ -17,16 +17,16 @@ class PriceStorySerializer(serializers.Serializer):
         return PriceStory(**validated_data)
 
     def update(self, instance, validated_data):
-        instance.currency = validated_data.get('currency', instance.currency)
+        instance.timestamp = validated_data.get('timestamp', instance.timestamp)
         instance.price = validated_data.get('price', instance.price)
-        instance.country_code = validated_data.get('country_code', instance.country_code)
+        instance.discount = validated_data.get('discount', instance.discount)
         return instance
 
 
 class GamePriceSerializer(serializers.Serializer):
-    country_code = serializers.CharField(required=True, max_length=3)
+    # country_code = serializers.CharField(required=True, max_length=3)
     currency = serializers.CharField(required=True, max_length=3)
-    price_story = PriceStorySerializer(required=True, many=True)
+    price_story = serializers.DictField(required=True, many=True)
 
 
     def create(self, validated_data):
@@ -34,15 +34,16 @@ class GamePriceSerializer(serializers.Serializer):
 
     def update(self, instance, validated_data):
         instance.currency = validated_data.get('currency', instance.currency)
-        instance.price = validated_data.get('price', instance.price)
-        instance.country_code = validated_data.get('country_code', instance.country_code)
+        instance.price_story = validated_data.get('price_story', instance.price_story)
+        #  FIXME iterating by dict
+        # instance.country_code = validated_data.get('country_code', instance.country_code)
         return instance
 
 
 class GameSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=True)
     name = serializers.CharField(required=True)
-    prices = GamePriceSerializer(many=True)
+    prices = serializers.DictField(many=True)
 
     def create(self, validated_data):
         return Game.objects.create(**validated_data)
@@ -53,6 +54,7 @@ class GameUpdateSerializer(serializers.Serializer):
     prices = GamePriceSerializer(many=True, required=False)
 
     def update(self, instance, validated_data):
+        # FIXME actualize
         instance.name = validated_data.get('name', instance.name)
         if new_prices := validated_data.get('prices'):
             instance.prices = [GamePrice(**price) for price in new_prices]
