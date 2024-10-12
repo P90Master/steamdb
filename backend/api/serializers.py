@@ -1,20 +1,22 @@
 from datetime import datetime
 
-from rest_framework import serializers
+from mongoengine import DoesNotExist
+from rest_framework import serializers, status
+from rest_framework.response import Response
 
-from games.documents import Game, GamePrice, PriceStory
+from games.documents import Game, GamePrice, PriceStoryPoint
 
 
 ### For manual use
 # TODO actualize
 
-class PriceStorySerializer(serializers.Serializer):
+class PriceStoryPointSerializer(serializers.Serializer):
     timestamp = serializers.DateTimeField(default=datetime.now)
     discount = serializers.IntegerField(min_value=0, max_value=100, default=0)
     price = serializers.DecimalField(required=True, min_value=0, decimal_places=2, max_digits=10)
 
     def create(self, validated_data):
-        return PriceStory(**validated_data)
+        return PriceStoryPoint(**validated_data)
 
     def update(self, instance, validated_data):
         instance.timestamp = validated_data.get('timestamp', instance.timestamp)
@@ -31,13 +33,6 @@ class GamePriceSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         return GamePrice(**validated_data)
-
-    def update(self, instance, validated_data):
-        instance.currency = validated_data.get('currency', instance.currency)
-        instance.price_story = validated_data.get('price_story', instance.price_story)
-        #  FIXME iterating by dict
-        # instance.country_code = validated_data.get('country_code', instance.country_code)
-        return instance
 
 
 class GameSerializer(serializers.Serializer):
@@ -56,8 +51,26 @@ class GameUpdateSerializer(serializers.Serializer):
     def update(self, instance, validated_data):
         # FIXME actualize
         instance.name = validated_data.get('name', instance.name)
+
         if new_prices := validated_data.get('prices'):
-            instance.prices = [GamePrice(**price) for price in new_prices]
+            current_prices = instance.prices
+
+            for country_code, price_collection in new_prices.items():
+
+                # if country already existed
+                if current_country_prices := current_prices.get(country_code):
+                    if new_currency := price_collection.get('currency'):
+                        current_country_prices.currency = new_currency
+
+                    current_country_prices.price_story.extend(price_collection.get('price_story'))
+                    current_country_prices.price_story.sort(key=lambda price_story: price_story.get('timestamp'))
+                else:
+                    new_price_story = price_collection.get('price_story').sort(key=lambda price_story: price_story.get('timestamp'))
+                    new_price_collection = GamePrice(
+                        currency=price_collection.get('currency'),
+                        price_story=new_price_story
+                    )
+                    current_prices[country_code] = new_price_collection
 
         instance.save()
         return instance
@@ -65,7 +78,7 @@ class GameUpdateSerializer(serializers.Serializer):
 
 ### For autonomous data-collecting tasks
 
-class GameDataPackageSerializer(serializers.Serializer):
+class GamePackageSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=True)
     name = serializers.CharField(required=False)
     country_code = serializers.CharField(required=True, max_length=3)
@@ -75,10 +88,48 @@ class GameDataPackageSerializer(serializers.Serializer):
     timestamp = serializers.DateTimeField(default=datetime.now)
 
     def create(self, validated_data):
-        # TODO implement
-        # if game not exists => create Game document
-        # if game exists, but new country => add GamePrice to "prices" DictField
-        # if game exists, country exists and price differs from previous => add PriceStory to "price_story" of GamePrice
-        # if game exists, country exists and same price => do nothing
         # TODO reflections: move logic above to view-level
-        pass
+        new_price_story_point = PriceStoryPoint(
+            timestamp=validated_data.get('timestamp'),
+            price=validated_data.get('price'),
+            discount=validated_data.get('discount')
+        )
+        new_price_collection = GamePrice(
+            currency=validated_data.get('currency'),
+            price_story=[new_price_story_point]
+        )
+        return Game.objects.create(
+            id=validated_data.get('id'),
+            name=validated_data.get('name'),
+            prices={
+                validated_data.get('country_code'): new_price_collection
+            }
+        )
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        country_code = validated_data.get('country_code')
+
+        if country_price_collection := instance.prices.get(country_code):
+            country_price_collection.currency = validated_data.get('currency')
+            new_price_story_point = PriceStoryPoint(
+                timestamp=validated_data.get('timestamp'),
+                price=validated_data.get('price'),
+                discount=validated_data.get('discount')
+            )
+            country_price_collection.price_story.append(new_price_story_point)
+            country_price_collection.price_story.sort(key=lambda price_story: price_story.get('timestamp'))
+        else:
+            new_price_story_point = PriceStoryPoint(
+                timestamp=validated_data.get('timestamp'),
+                price=validated_data.get('price'),
+                discount=validated_data.get('discount')
+            )
+            new_price_collection = GamePrice(
+                currency=validated_data.get('currency'),
+                price_story=[new_price_story_point]
+            )
+            instance.prices[country_code] = new_price_collection
+
+        instance.save()
+        return instance

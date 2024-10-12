@@ -1,9 +1,10 @@
 from mongoengine import DoesNotExist
+from mongoengine.queryset import update
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from api.serializers import GameSerializer, GameUpdateSerializer
+from api.serializers import GameSerializer, GameUpdateSerializer, GamePackageSerializer
 from games.documents import Game
 
 
@@ -65,5 +66,24 @@ class GameDetailView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GamesPackageView(APIView):
+    serializer_class = GamePackageSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            try:
+                game = Game.objects.get(id=serializer.data['id'])
+                serializer = self.serializer_class(data=serializer.data, instance=game)
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+            except DoesNotExist:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
