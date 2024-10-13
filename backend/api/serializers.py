@@ -142,22 +142,26 @@ class GamePackageSerializer(serializers.Serializer):
         instance.name = validated_data.get('name', instance.name)
         country_code = validated_data.get('country_code')
 
+        # if price collection for received country already exists
         if country_price_collection := instance.prices.get(country_code):
             country_price_collection.currency = validated_data.get(
                 'currency',
                 country_price_collection.get("currency")
             )
-            new_price_story_point = PriceStoryPointSerializer(
-                data={
-                    "timestamp": validated_data.get('timestamp'),
-                    "price": validated_data.get('price'),
-                    "discount": validated_data.get('discount')
-                }
-            )
-            new_price_story_point.is_valid(raise_exception=True)
-            existed_price_story = country_price_collection.get("price_story")
-            existed_price_story.append(new_price_story_point.data)
-            existed_price_story.sort(key=lambda price_story: price_story.get('timestamp'))
+
+            new_price = float(validated_data.get('price'))
+            if new_price != instance.get_current_price(country_code):
+                new_price_story_point = PriceStoryPointSerializer(
+                    data={
+                        "timestamp": validated_data.get('timestamp'),
+                        "price": validated_data.get('price'),
+                        "discount": validated_data.get('discount')
+                    }
+                )
+                new_price_story_point.is_valid(raise_exception=True)
+                existed_price_story = country_price_collection.get("price_story")
+                existed_price_story.append(new_price_story_point.data)
+                existed_price_story.sort(key=lambda price_story: price_story.get('timestamp'))
         else:
             new_price_collection = self._build_price_collection(validated_data)
             instance.prices[country_code] = new_price_collection

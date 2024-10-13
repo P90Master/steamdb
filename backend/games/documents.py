@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Union
 
 from mongoengine import Document, EmbeddedDocument, fields
 from django.conf import settings
@@ -21,5 +22,14 @@ class Game(Document):
     id = fields.IntField(primary_key=True)
     name = fields.StringField(required=True)
     prices = fields.DictField()
+
+    def get_current_price(self, country_code: str) -> Union[float, None]:
+        if country_code not in self.prices:
+            return None
+
+        if not (price_story := self.prices[country_code].get('price_story')):
+            return None
+
+        return float(price_story[-1].get('price'))
 
     meta = {"db_alias": settings.MONGO_ALIAS, "collection": "games"}
