@@ -1,8 +1,8 @@
 from datetime import datetime
 
 from mongoengine import DoesNotExist
-from rest_framework import serializers, status
-from rest_framework.response import Response
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from games.documents import Game, GamePrice, PriceStoryPoint
 
@@ -16,20 +16,19 @@ class PriceStoryPointSerializer(serializers.Serializer):
     price = serializers.DecimalField(required=True, min_value=0, decimal_places=2, max_digits=10)
 
     def create(self, validated_data):
+        validated_data['price'] = float(validated_data['price'])
         return PriceStoryPoint(**validated_data)
 
     def update(self, instance, validated_data):
         instance.timestamp = validated_data.get('timestamp', instance.timestamp)
-        instance.price = validated_data.get('price', instance.price)
+        instance.price = float(validated_data.get('price', instance.price))
         instance.discount = validated_data.get('discount', instance.discount)
         return instance
 
 
 class GamePriceSerializer(serializers.Serializer):
-    # country_code = serializers.CharField(required=True, max_length=3)
     currency = serializers.CharField(required=True, max_length=3)
-    price_story = serializers.DictField(required=True, many=True)
-
+    price_story = PriceStoryPointSerializer(required=True, many=True)
 
     def create(self, validated_data):
         return GamePrice(**validated_data)
@@ -38,10 +37,28 @@ class GamePriceSerializer(serializers.Serializer):
 class GameSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=True)
     name = serializers.CharField(required=True)
-    prices = serializers.DictField(many=True)
+    prices = serializers.DictField()
 
     def create(self, validated_data):
-        return Game.objects.create(**validated_data)
+        game_data = {
+            "id": validated_data.get('id'),
+            "name": validated_data.get('name'),
+        }
+        game_prices = {}
+        for country_code, price_collection in validated_data.get('prices').items():
+            game_prices_collection = GamePriceSerializer(data=price_collection)
+            game_prices_collection.is_valid(raise_exception=True)
+            game_prices[country_code] = game_prices_collection.data
+
+        game_data['prices'] = game_prices
+        return Game.objects.create(**game_data)
+
+    def validate_id(self, value):
+        try:
+            if Game.objects.get(id=value):
+                raise ValidationError(f"Game with id '{value}' already exists.")
+        except DoesNotExist:
+            return value
 
 
 class GameUpdateSerializer(serializers.Serializer):
@@ -89,6 +106,8 @@ class GamePackageSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         # TODO reflections: move logic above to view-level
+        # TODO Refactor
+        # TODO If price the same - do nothing
         new_price_story_point = PriceStoryPoint(
             timestamp=validated_data.get('timestamp'),
             price=validated_data.get('price'),

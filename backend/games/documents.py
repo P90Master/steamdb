@@ -20,7 +20,6 @@ class GamePrice(EmbeddedDocument):
 class Game(Document):
     id = fields.IntField(primary_key=True)
     name = fields.StringField(required=True)
-    # key - country_code, value: GamePrice()
     prices = fields.DictField()
 
     meta = {"db_alias": settings.MONGO_ALIAS, "collection": "games"}
