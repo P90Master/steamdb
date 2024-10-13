@@ -1,6 +1,7 @@
 from mongoengine import DoesNotExist
 from mongoengine.queryset import update
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
@@ -77,13 +78,17 @@ class GamesPackageView(APIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             try:
-                game = Game.objects.get(id=serializer.data['id'])
-                serializer = self.serializer_class(data=serializer.data, instance=game)
+                game = Game.objects.get(id=serializer.validated_data['id'])
+                serializer = self.serializer_class(data=serializer.validated_data, instance=game)
+                serializer.is_valid(raise_exception=True)
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
             except DoesNotExist:
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+            except ValidationError:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
