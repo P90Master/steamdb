@@ -13,7 +13,7 @@ from games.documents import Game, GamePrice, PriceStoryPoint
 class PriceStoryPointSerializer(serializers.Serializer):
     timestamp = serializers.DateTimeField(default=datetime.now)
     discount = serializers.IntegerField(min_value=0, max_value=100, default=0)
-    price = serializers.DecimalField(required=True, min_value=0, decimal_places=2, max_digits=10)
+    price = serializers.DecimalField(required=True, min_value=0.0, decimal_places=2, max_digits=10)
 
     def create(self, validated_data):
         validated_data['price'] = float(validated_data['price'])
@@ -106,7 +106,7 @@ class GamePackageSerializer(serializers.Serializer):
     country_code = serializers.CharField(required=True, max_length=3)
     currency = serializers.CharField(required=True, max_length=3)
     discount = serializers.IntegerField(min_value=0, max_value=100, default=0)
-    price = serializers.DecimalField(required=True, min_value=0, decimal_places=2, max_digits=10)
+    price = serializers.DecimalField(required=True, min_value=0.0, decimal_places=2, max_digits=10)
     timestamp = serializers.DateTimeField(default=datetime.now)
 
     @staticmethod
