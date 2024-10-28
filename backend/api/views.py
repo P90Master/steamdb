@@ -75,6 +75,7 @@ class GamesPackageView(APIView):
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
+
         if serializer.is_valid():
             try:
                 game = Game.objects.get(id=serializer.validated_data['id'])
