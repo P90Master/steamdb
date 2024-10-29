@@ -1,9 +1,9 @@
 from worker.settings import CountryCodeCurrencyMapping
 
 
-class AppDataPackageBuilder:
+class BackendPackageDataBuilder:
     def __init__(self):
-        self.app_data_package_build_schema = {
+        self.backend_package_data_build_schema = {
             "id": self._extract_app_id,
             "name": self._extract_app_name,
             "country_code": self._extract_response_country_code,
@@ -15,7 +15,7 @@ class AppDataPackageBuilder:
     def build(self, app_data, app_request_params):
         return {
             field_name: data_extractor(app_data, app_request_params)
-            for field_name, data_extractor in self.app_data_package_build_schema.items()
+            for field_name, data_extractor in self.backend_package_data_build_schema.items()
         }
 
     @staticmethod
@@ -53,4 +53,4 @@ class AppDataPackageBuilder:
         return app_data.get('price_overview', {}).get('currency')
 
 
-app_data_package_builder = AppDataPackageBuilder()
+backend_package_data_builder = BackendPackageDataBuilder()

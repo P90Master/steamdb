@@ -12,7 +12,7 @@ class CountryCodeCurrencyMapping(Enum):
         return cls[code].value if code in cls.__members__ else None
 
     US = 'USD'
-    RU = 'RUS'
+    RU = 'RUB'
 
 
 DEFAULT_COUNTRY_CODE = CountryCodes.united_states.value

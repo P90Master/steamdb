@@ -29,7 +29,7 @@ class BackendSessionClient(BaseSessionClient, BackendAPI):
 
     async def post_app_data_package(self, app_data_package: Dict[str, Any]):
         try:
-            async with self._session.post(self.get_app_data_package_endpoint, data=app_data_package) as response:
+            async with self._session.post(self.get_app_data_package_endpoint, json=app_data_package) as response:
                 response.raise_for_status()
                 return await response.json()
 
@@ -46,7 +46,7 @@ class BackendAPIClient(BaseAPIClient, BackendAPI):
     async def post_app_data_package(self, app_data_package: Dict[str, Any]):
         try:
             async with self.SESSION_CLIENT_FOR_SINGLE_REQUESTS() as session:
-                async with session.post(self.get_app_data_package_endpoint, data=app_data_package) as response:
+                async with session.post(self.get_app_data_package_endpoint, json=app_data_package) as response:
                     response.raise_for_status()
                     return await response.json()
 

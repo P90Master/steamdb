@@ -14,7 +14,8 @@ class PriceStoryPoint(EmbeddedDocument):
 
 
 class GamePrice(EmbeddedDocument):
-    currency = fields.StringField(required=True, max_length=3)
+    is_available = fields.BooleanField(default=True)
+    currency = fields.StringField(required=False, max_length=3)
     price_story = fields.EmbeddedDocumentListField(PriceStoryPoint)
 
 

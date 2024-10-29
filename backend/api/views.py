@@ -1,10 +1,9 @@
 from mongoengine import DoesNotExist
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from api.serializers import GameSerializer, GameUpdateSerializer, GamePackageSerializer
+from api.serializers import GameSerializer, GameUpdateSerializer, GamePackageDataSerializer, GamePackageSerializer
 from games.documents import Game
 
 
@@ -71,24 +70,42 @@ class GameDetailView(APIView):
 
 
 class GamesPackageView(APIView):
-    serializer_class = GamePackageSerializer
+    package_serializer_class = GamePackageDataSerializer
+    request_serializer_class = GamePackageSerializer
 
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
+        request_serializer = self.request_serializer_class(data=request.data)
 
-        if serializer.is_valid():
+        if request_serializer.is_valid():
+            package_data = request_serializer.validated_data['data']
+
+            if request_serializer.validated_data['is_success']:
+                try:
+                    game = Game.objects.get(id=package_data['id'])
+                    package_serializer = self.package_serializer_class(data=package_data, instance=game)
+
+                except DoesNotExist:
+                    package_serializer = self.package_serializer_class(data=package_data)
+
+                if package_serializer.is_valid():
+                    package_serializer.save()
+                    return Response(request_serializer.validated_data, status=status.HTTP_200_OK)
+
+                return Response(request_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
             try:
-                game = Game.objects.get(id=serializer.validated_data['id'])
-                serializer = self.serializer_class(data=serializer.validated_data, instance=game)
-                serializer.is_valid(raise_exception=True)
-                serializer.save()
-                return Response(serializer.validated_data, status=status.HTTP_200_OK)
+                game = Game.objects.get(id=package_data['id'])
+                package_data["is_available"] = False
+                package_serializer = self.package_serializer_class(data=package_data, instance=game)
+                if package_serializer.is_valid():
+                    package_serializer.save()
+                    return Response(request_serializer.validated_data, status=status.HTTP_200_OK)
+
+                return Response(request_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             except DoesNotExist:
-                serializer.save()
-                return Response(serializer.validated_data, status=status.HTTP_200_OK)
+                # if task response isn't success and game with given id doesn't exist => may be wrong id - skip
+                # TODO Warning log message
+                return Response(request_serializer.validated_data, status=status.HTTP_200_OK)
 
-            except ValidationError:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(request_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
