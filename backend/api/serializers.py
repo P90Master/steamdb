@@ -181,7 +181,7 @@ class GamePackageDataSerializer(serializers.Serializer):
             else:
 
                 # if game was available before
-                if country_price_collection.is_available:
+                if country_price_collection.get("is_available"):
 
                     new_price_story_point = PriceStoryPointSerializer(
                         data={

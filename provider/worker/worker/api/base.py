@@ -1,9 +1,42 @@
 import abc
 import asyncio
+import functools
+
+import aiohttp
+
+from worker.logger import logger
 
 
 class APIClientException(Exception):
     pass
+
+
+def handle_response_exceptions(component=__name__, method=None, url=None):
+    def decorator(coro):
+        @functools.wraps(coro)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await coro(*args, **kwargs)
+
+            except aiohttp.ClientResponseError as http_error:
+                logger.error(
+                    f"Received {http_error.status} from {component}."
+                    f" URL: {url or 'Not specified'}"
+                    f" Method: {method or 'Not specified'}"
+                    f" Error: {http_error}"
+                )
+                # TODO raise for failed requests accounting
+
+            except Exception as unknown_error:
+                logger.error(
+                    f"Unhandled exception received: {unknown_error}"
+                    f" URL: {url or 'Not specified'}"
+                    f" Method: {method or 'Not specified'}"
+                )
+
+        return wrapper
+
+    return decorator
 
 
 class BaseSessionClient(abc.ABC):

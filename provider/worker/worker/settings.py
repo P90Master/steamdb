@@ -14,5 +14,7 @@ class CountryCodeCurrencyMapping(Enum):
     US = 'USD'
     RU = 'RUB'
 
+# TODO Pydantic class
 
 DEFAULT_COUNTRY_CODE = CountryCodes.united_states.value
+DEBUG = True
