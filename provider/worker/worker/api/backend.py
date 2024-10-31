@@ -6,6 +6,7 @@ from enum import Enum
 
 from .base import APIClientException, BaseAPIClient, BaseSessionClient, handle_response_exceptions, retry
 from worker.logger import logger
+from worker.config import settings
 
 class BackendAPIClientException(APIClientException):
     pass
@@ -13,8 +14,7 @@ class BackendAPIClientException(APIClientException):
 
 class BackendAPI(abc.ABC):
     class BackendAPIUrl(Enum):
-        # TODO Extracting from Settings (Pydantic)
-        app_data_package = 'http://127.0.0.1:8000/api/v1/games/package/'
+        app_data_package = f'{settings.BACKEND_HOST}/api/{settings.BACKEND_API_VERSION}/games/package/'
 
     @classmethod
     @property

@@ -2,7 +2,7 @@ import asyncio
 from typing import Sized
 
 from worker.connection import steam_api_client, backend_api_client
-from worker.settings import DEFAULT_COUNTRY_CODE
+from worker.config import settings
 from worker.utils import backend_package_data_builder
 from worker.logger import logger
 
@@ -45,7 +45,7 @@ async def request_all_apps_task():
     return app_list
 
 
-async def update_app_data_task(app_id: str, country_code: str = DEFAULT_COUNTRY_CODE):
+async def update_app_data_task(app_id: str, country_code: str = settings.DEFAULT_COUNTRY_CODE):
     # TODO wrap steam requests in celery task
 
     logger.info(f'Requesting app data. AppID: {app_id} CountryCode: {country_code}')
@@ -62,8 +62,8 @@ async def update_app_data_task(app_id: str, country_code: str = DEFAULT_COUNTRY_
     logger.info(f'App data successfully pushed to backend. AppID: {app_id} CountryCode: {country_code}')
 
 
-async def batch_update_apps_data_task(batch_of_app_ids: Sized, country_code: str = DEFAULT_COUNTRY_CODE):
-    # TODO TODO wrap steam requests in celery task
+async def batch_update_apps_data_task(batch_of_app_ids: Sized, country_code: str = settings.DEFAULT_COUNTRY_CODE):
+    # TODO wrap steam requests in celery task
 
     logger.info(
         f'Requesting batch of apps data.'

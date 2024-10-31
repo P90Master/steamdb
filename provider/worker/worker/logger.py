@@ -3,14 +3,14 @@ import sys
 import logging
 from logging.handlers import RotatingFileHandler
 
-from worker.settings import DEBUG
+from worker.config import settings
 
 
 logger_name = "worker" if __name__ == "__main__" else __name__
 
 logger = logging.getLogger(logger_name)
 
-if DEBUG:
+if settings.DEBUG:
     logger.setLevel(logging.DEBUG)
 else:
     logger.setLevel(logging.INFO)

@@ -1,4 +1,4 @@
-from worker.settings import CountryCodeCurrencyMapping
+from worker.config import CountryCodeCurrencyMapping
 
 
 class BackendPackageDataBuilder:

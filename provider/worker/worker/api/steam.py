@@ -3,7 +3,7 @@ import aiohttp
 from enum import Enum
 
 # TODO change to root abs path
-from worker.settings import DEFAULT_COUNTRY_CODE
+from worker.config import settings
 from .base import APIClientException, BaseAPIClient, BaseSessionClient, handle_response_exceptions
 
 
@@ -13,9 +13,8 @@ class SteamAPIClientException(APIClientException):
 
 class SteamAPI(abc.ABC):
     class SteamAPIUrl(Enum):
-        # TODO Extracting from Settings (Pydantic)
-        app_list = 'http://api.steampowered.com/ISteamApps/GetAppList/v2'
-        app_detail = 'http://store.steampowered.com/api/appdetails'
+        app_list = settings.STEAM_APP_LIST_URL
+        app_detail = settings.STEAM_APP_DETAIL_URL
 
     @classmethod
     @property
@@ -46,7 +45,7 @@ class SteamSessionClient(BaseSessionClient, SteamAPI):
             return await response.json()
 
     @handle_response_exceptions(component=__name__, url=SteamAPI.get_app_detail_url, method="GET")
-    async def get_app_detail(self, app_id, country_code=DEFAULT_COUNTRY_CODE):
+    async def get_app_detail(self, app_id, country_code=settings.DEFAULT_COUNTRY_CODE):
         params = {
             'appids': app_id,
             'cc': country_code,
@@ -70,7 +69,7 @@ class SteamAPIClient(BaseAPIClient, SteamAPI):
                 return await response.json()
 
     @handle_response_exceptions(component=__name__, url=SteamAPI.get_app_detail_url, method="GET")
-    async def get_app_detail(self, app_id, country_code=DEFAULT_COUNTRY_CODE):
+    async def get_app_detail(self, app_id, country_code=settings.DEFAULT_COUNTRY_CODE):
         params = {
             'appids': app_id,
             'cc': country_code,
