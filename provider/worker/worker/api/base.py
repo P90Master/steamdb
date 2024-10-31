@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import functools
+from typing import Callable
 
 import aiohttp
 
@@ -11,7 +12,7 @@ class APIClientException(Exception):
     pass
 
 
-def handle_response_exceptions(component=__name__, method=None, url=None):
+def handle_response_exceptions(component=__name__, method=None, url=None)-> Callable:
     def decorator(coro):
         @functools.wraps(coro)
         async def wrapper(*args, **kwargs):
@@ -33,6 +34,35 @@ def handle_response_exceptions(component=__name__, method=None, url=None):
                     f" URL: {url or 'Not specified'}"
                     f" Method: {method or 'Not specified'}"
                 )
+
+        return wrapper
+
+    return decorator
+
+
+def retry(timeout: int = 5, attempts: int = 2, request_exceptions: tuple[Exception] = None) -> Callable:
+    if not request_exceptions:
+        request_exceptions = (aiohttp.ClientResponseError,)
+
+    def decorator(coro):
+        @functools.wraps(coro)
+        async def wrapper(*args, **kwargs):
+            attempts_counter = attempts
+
+            while True:
+                try:
+                    return await coro(*args, **kwargs)
+
+                except request_exceptions as request_error:
+                    if attempts_counter > 0:
+                        attempts_counter -= 1
+                        logger.warning(
+                            f"Request by {coro} failed. Error: {request_error}. Retries left: {attempts_counter}"
+                        )
+                        await asyncio.sleep(timeout)
+
+                    else:
+                        raise request_error
 
         return wrapper
 
