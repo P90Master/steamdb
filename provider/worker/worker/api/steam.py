@@ -2,7 +2,6 @@ import abc
 import aiohttp
 from enum import Enum
 
-# TODO change to root abs path
 from worker.config import settings
 from .base import APIClientException, BaseAPIClient, BaseSessionClient, handle_response_exceptions
 

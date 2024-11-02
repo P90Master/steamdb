@@ -12,6 +12,13 @@ class APIClientException(Exception):
     pass
 
 
+DEFAULT_EXCEPTIONS_FOR_RETRY = (
+    aiohttp.ClientResponseError,
+    aiohttp.ClientConnectionError,
+    APIClientException,
+)
+
+
 def handle_response_exceptions(component=__name__, method=None, url=None)-> Callable:
     def decorator(coro):
         @functools.wraps(coro)
@@ -26,7 +33,7 @@ def handle_response_exceptions(component=__name__, method=None, url=None)-> Call
                     f" Method: {method or 'Not specified'}"
                     f" Error: {http_error}"
                 )
-                # TODO raise for failed requests accounting
+                raise http_error
 
             except Exception as unknown_error:
                 logger.error(
@@ -34,6 +41,7 @@ def handle_response_exceptions(component=__name__, method=None, url=None)-> Call
                     f" URL: {url or 'Not specified'}"
                     f" Method: {method or 'Not specified'}"
                 )
+                raise unknown_error
 
         return wrapper
 
@@ -42,7 +50,7 @@ def handle_response_exceptions(component=__name__, method=None, url=None)-> Call
 
 def retry(timeout: int = 5, attempts: int = 2, request_exceptions: tuple[Exception] = None) -> Callable:
     if not request_exceptions:
-        request_exceptions = (aiohttp.ClientResponseError,)
+        request_exceptions = DEFAULT_EXCEPTIONS_FOR_RETRY
 
     def decorator(coro):
         @functools.wraps(coro)
@@ -57,7 +65,8 @@ def retry(timeout: int = 5, attempts: int = 2, request_exceptions: tuple[Excepti
                     if attempts_counter > 0:
                         attempts_counter -= 1
                         logger.warning(
-                            f"Request by {coro} failed. Error: {request_error}. Retries left: {attempts_counter}"
+                            f"Request by method {coro.__name__}() failed. Error: {request_error}."
+                            f" Retries left: {attempts_counter}"
                         )
                         await asyncio.sleep(timeout)
 
@@ -105,8 +114,6 @@ class BaseAPIClient(abc.ABC):
             return self._session
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        # TODO Handle if exc_type is not None
-
         async with self._session_lock:
             self._session_consumers_counter -= 1
 
@@ -114,4 +121,4 @@ class BaseAPIClient(abc.ABC):
                 await self._session.close()
                 self._session = None
 
-            return False
+        return False
