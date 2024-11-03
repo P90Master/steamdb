@@ -23,7 +23,7 @@ class WorkerSettings(BaseSettings):
 
     MIN_DELAY_BETWEEN_STEAM_REQUESTS: float = 1.5
 
-    BACKEND_HOST: str = 'http://127.0.0.1:8000'
+    BACKEND_HOST: str = 'http://backend:8000'
     BACKEND_API_VERSION: str = 'v1'
 
     STEAM_APP_LIST_URL: str = 'http://api.steampowered.com/ISteamApps/GetAppList/v2'

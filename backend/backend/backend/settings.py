@@ -119,6 +119,8 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Games database
+MONGO_HOST = os.getenv('MONGO_HOST', "127.0.0.1")
+MONGO_PORT = int(os.getenv('MONGO_PORT', 27017))
 MONGO_USER = os.getenv('MONGO_USER')
 MONGO_PASSWORD = os.getenv('MONGO_PASSWORD')
 MONGO_ALIAS = os.getenv('MONGO_ALIAS')

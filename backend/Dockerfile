@@ -1,12 +1,12 @@
 FROM python:3.9
 
-# TODO: special user for worker
+WORKDIR /backend
 
 COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
     rm requirements.txt
 
-COPY ./worker /worker
+COPY backend/ .
 
-ENTRYPOINT celery --app worker.celery_app worker --loglevel=info & python -m worker.main
+CMD ["gunicorn", "backend.wsgi:application", "--bind", "0:8000" ]
