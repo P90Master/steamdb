@@ -21,6 +21,8 @@ class WorkerSettings(BaseSettings):
     DEFAULT_COUNTRY_CODE: str = CountryCodes.united_states.value
     DEBUG: bool = True
 
+    MIN_DELAY_BETWEEN_STEAM_REQUESTS: float = 1.5
+
     BACKEND_HOST: str = 'http://127.0.0.1:8000'
     BACKEND_API_VERSION: str = 'v1'
 
@@ -29,6 +31,11 @@ class WorkerSettings(BaseSettings):
 
     LOGGER_WRITE_IN_FILE: bool = True
     LOG_FILES_PATH: str = 'logs'
+
+    # TODO: URL builder
+    CELERY_NAME: str = "requests_to_steam"
+    CELERY_BROKER: str = "redis://worker-celery-broker:6379/0"
+    CELERY_BACKEND: str = "redis://worker-celery-broker:6379/0"
 
     class Config:
         env_file = '.env'

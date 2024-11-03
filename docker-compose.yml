@@ -1,17 +1,22 @@
 services:
 
-  mongo:
+  steam-db:
     image: mongo
     restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
     ports:
       - '27017:27017'
 
-  mongo-express:
+  steam-db-gui:
+    # TODO: docker-compose.dev.yml
     image: mongo-express
     restart: always
+    depends_on:
+      - steam-db
     environment:
       ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USER}
       ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD}
@@ -19,3 +24,26 @@ services:
       ME_CONFIG_BASICAUTH: false
     ports:
       - '8081:8081'
+
+  worker:
+    # TODO: volume for logs
+    build:
+      context: provider/worker
+    depends_on:
+      - worker-celery-broker
+
+  worker-celery-broker:
+    image: redis:alpine
+
+  worker-flower:
+    # TODO: docker-compose.dev.yml
+    image: mher/flower
+    command: celery flower --broker=redis://worker-celery-broker:6379/0
+    ports:
+      - "5555:5555"
+    depends_on:
+      - worker-celery-broker
+      - worker
+
+volumes:
+  mongo_data:

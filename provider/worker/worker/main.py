@@ -4,13 +4,14 @@ import asyncio
 async def main():
     from worker.tasks import update_app_data_task, batch_update_apps_data_task
 
-    # result = await update_app_data_task(app_id=588650, country_code='RU')
-    # print(result)
+    while True:
+        result = await batch_update_apps_data_task(batch_of_app_ids=(9453600, 570, 292030), country_code='RU')
+        print("Completed")
 
-    result = await batch_update_apps_data_task(batch_of_app_ids=(9453600, 570, 292030), country_code='RU')
-    print("Completed")
+        # result = await update_app_data_task(app_id=588650, country_code='RU')
+        # print(result)
 
-    await asyncio.sleep(1)
+        await asyncio.sleep(20)
 
 
 if __name__ == '__main__':

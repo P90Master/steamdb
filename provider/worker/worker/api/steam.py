@@ -26,11 +26,11 @@ class SteamAPI(abc.ABC):
         return cls.SteamAPIUrl.app_detail.value
 
     @abc.abstractmethod
-    def get_app_list(self, *args, **kwargs):
+    async def get_app_list(self, *args, **kwargs):
         pass
 
     @abc.abstractmethod
-    def get_app_detail(self, *args, **kwargs):
+    async def get_app_detail(self, *args, **kwargs):
         pass
 
 

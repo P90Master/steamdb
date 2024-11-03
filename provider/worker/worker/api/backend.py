@@ -5,7 +5,6 @@ import aiohttp
 from enum import Enum
 
 from .base import APIClientException, BaseAPIClient, BaseSessionClient, handle_response_exceptions, retry
-from worker.logger import logger
 from worker.config import settings
 
 class BackendAPIClientException(APIClientException):
