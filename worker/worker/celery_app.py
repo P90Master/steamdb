@@ -13,4 +13,4 @@ celery_app = Celery(
     timezone='UTC',
     enable_utc=True,
 )
-celery_app.autodiscover_tasks()
+celery_app.autodiscover_tasks(['worker'])

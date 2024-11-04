@@ -47,10 +47,9 @@ class SteamAPIClient(SteamAPI):
 
     @handle_response_exceptions(component=__name__, url=SteamAPI.get_app_list_url, method="GET")
     def get_app_list(self):
-        with requests.Session() as session:
-            response = session.get(self.get_app_list_url, params=None)
-            response.raise_for_status()
-            return response.json()
+        response = requests.get(self.get_app_list_url, params=None)
+        response.raise_for_status()
+        return response.json()
 
     @handle_response_exceptions(component=__name__, url=SteamAPI.get_app_detail_url, method="GET")
     def get_app_detail(self, app_id, country_code=settings.DEFAULT_COUNTRY_CODE):
@@ -59,10 +58,9 @@ class SteamAPIClient(SteamAPI):
             'cc': country_code,
         }
 
-        with requests.Session() as session:
-            response = session.get(self.get_app_detail_url, params=params)
-            response.raise_for_status()
-            return response.json()
+        response = requests.get(self.get_app_detail_url, params=params)
+        response.raise_for_status()
+        return response.json()
 
 
 class AsyncSteamSessionClient(BaseAsyncSessionClient, SteamAPI):

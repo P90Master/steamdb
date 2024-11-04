@@ -21,8 +21,6 @@ class WorkerSettings(BaseSettings):
     DEFAULT_COUNTRY_CODE: str = CountryCodes.united_states.value
     DEBUG: bool = True
 
-    MIN_DELAY_BETWEEN_STEAM_REQUESTS: float = 1.5
-
     BACKEND_HOST: str = 'http://backend:8000'
     BACKEND_API_VERSION: str = 'v1'
 
@@ -36,6 +34,8 @@ class WorkerSettings(BaseSettings):
     CELERY_NAME: str = "requests_to_steam"
     CELERY_BROKER: str = "redis://worker-celery-broker:6379/0"
     CELERY_BACKEND: str = "redis://worker-celery-broker:6379/0"
+    CELERY_TASK_COMMON_RATE_LIMIT: str = '1/m'
+    CELERY_TASK_TIME_LIMIT: int = 20
 
     class Config:
         env_file = '.env'
