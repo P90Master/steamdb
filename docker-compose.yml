@@ -53,11 +53,13 @@ services:
 
   worker-celery-broker:
     image: redis:alpine
+    ports:
+      - '6379:6379'
 
   worker-flower:
     # TODO: docker-compose.dev.yml
     image: mher/flower
-    command: celery flower --broker=redis://worker-celery-broker:6379/0
+    command: celery --broker=redis://worker-celery-broker:6379/0 flower
     ports:
       - "5555:5555"
     depends_on:

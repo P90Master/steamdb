@@ -4,7 +4,7 @@ from typing import Dict, Any
 import aiohttp
 from enum import Enum
 
-from .base import APIClientException, BaseAPIClient, BaseSessionClient, handle_response_exceptions, retry
+from .base import APIClientException, BaseAsyncAPIClient, BaseAsyncSessionClient, handle_response_exceptions, retry
 from worker.config import settings
 
 class BackendAPIClientException(APIClientException):
@@ -25,7 +25,7 @@ class BackendAPI(abc.ABC):
         pass
 
 
-class BackendSessionClient(BaseSessionClient, BackendAPI):
+class AsyncBackendSessionClient(BaseAsyncSessionClient, BackendAPI):
     SESSION_CLASS = aiohttp.ClientSession
 
     @handle_response_exceptions(component=__name__, url=BackendAPI.get_app_data_package_endpoint, method="POST")
@@ -36,8 +36,8 @@ class BackendSessionClient(BaseSessionClient, BackendAPI):
             return await response.json()
 
 
-class BackendAPIClient(BaseAPIClient, BackendAPI):
-    SESSION_CLIENT = BackendSessionClient
+class AsyncBackendAPIClient(BaseAsyncAPIClient, BackendAPI):
+    SESSION_CLIENT = AsyncBackendSessionClient
     SESSION_CLIENT_FOR_SINGLE_REQUESTS = aiohttp.ClientSession
     API_CLIENT_EXCEPTION_CLASS = BackendAPIClientException
 

@@ -2,8 +2,15 @@ import abc
 import aiohttp
 from enum import Enum
 
+import requests
+
 from worker.config import settings
-from .base import APIClientException, BaseAPIClient, BaseSessionClient, handle_response_exceptions
+from .base import (
+    APIClientException,
+    BaseAsyncAPIClient,
+    BaseAsyncSessionClient,
+    handle_response_exceptions,
+)
 
 
 class SteamAPIClientException(APIClientException):
@@ -26,15 +33,39 @@ class SteamAPI(abc.ABC):
         return cls.SteamAPIUrl.app_detail.value
 
     @abc.abstractmethod
-    async def get_app_list(self, *args, **kwargs):
+    def get_app_list(self, *args, **kwargs):
         pass
 
     @abc.abstractmethod
-    async def get_app_detail(self, *args, **kwargs):
+    def get_app_detail(self, *args, **kwargs):
         pass
 
 
-class SteamSessionClient(BaseSessionClient, SteamAPI):
+class SteamAPIClient(SteamAPI):
+    def __init__(self, token):
+        self._token = token
+
+    @handle_response_exceptions(component=__name__, url=SteamAPI.get_app_list_url, method="GET")
+    def get_app_list(self):
+        with requests.Session() as session:
+            response = session.get(self.get_app_list_url, params=None)
+            response.raise_for_status()
+            return response.json()
+
+    @handle_response_exceptions(component=__name__, url=SteamAPI.get_app_detail_url, method="GET")
+    def get_app_detail(self, app_id, country_code=settings.DEFAULT_COUNTRY_CODE):
+        params = {
+            'appids': app_id,
+            'cc': country_code,
+        }
+
+        with requests.Session() as session:
+            response = session.get(self.get_app_detail_url, params=params)
+            response.raise_for_status()
+            return response.json()
+
+
+class AsyncSteamSessionClient(BaseAsyncSessionClient, SteamAPI):
     SESSION_CLASS = aiohttp.ClientSession
 
     @handle_response_exceptions(component=__name__, url=SteamAPI.get_app_list_url, method="GET")
@@ -55,8 +86,8 @@ class SteamSessionClient(BaseSessionClient, SteamAPI):
             return await response.json()
 
 
-class SteamAPIClient(BaseAPIClient, SteamAPI):
-    SESSION_CLIENT = SteamSessionClient
+class AsyncSteamAPIClient(BaseAsyncAPIClient, SteamAPI):
+    SESSION_CLIENT = AsyncSteamSessionClient
     SESSION_CLIENT_FOR_SINGLE_REQUESTS = aiohttp.ClientSession
     API_CLIENT_EXCEPTION_CLASS = SteamAPIClientException
 
