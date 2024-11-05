@@ -34,6 +34,7 @@ class WorkerSettings(BaseSettings):
     CELERY_NAME: str = "requests_to_steam"
     CELERY_BROKER: str = "redis://worker-celery-broker:6379/0"
     CELERY_BACKEND: str = "redis://worker-celery-broker:6379/0"
+    # TODO: validate by max 40/m
     CELERY_TASK_COMMON_RATE_LIMIT: str = '39/m'
     CELERY_TASK_TIME_LIMIT: int = 20
 
