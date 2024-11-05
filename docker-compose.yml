@@ -1,5 +1,10 @@
-services:
+# TODO: cluster name
+# TODO: profiles
+# TODO: healthcheck
+# TODO: restart
+# TODO: worker replicas
 
+services:
   db:
     image: mongo
     restart: always
@@ -45,9 +50,11 @@ services:
   # TODO: backend-db service
 
   worker:
-    # TODO: volume for logs
+    # TODO environment
     build:
       context: /worker
+    volumes:
+      - worker_logs:/worker/logs
     depends_on:
       - worker-celery-broker
 
@@ -68,3 +75,4 @@ services:
 
 volumes:
   mongo_data:
+  worker_logs:
