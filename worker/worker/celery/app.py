@@ -1,6 +1,6 @@
 from celery import Celery
 
-from .config import settings
+from worker.config import settings
 
 
 celery_app = Celery(
@@ -13,4 +13,4 @@ celery_app = Celery(
     timezone='UTC',
     enable_utc=True,
 )
-celery_app.autodiscover_tasks(['worker'])
+celery_app.autodiscover_tasks(['worker.celery'])

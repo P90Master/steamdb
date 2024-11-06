@@ -1,4 +1,32 @@
 from worker.config import CountryCodeCurrencyMapping
+from worker.logger import logger
+
+
+def convert_steam_app_data_response_to_backend_app_data_package(request_params, response):
+    app_id = request_params.get('app_id')
+    app_response = response.get(str(app_id))
+
+    if not (is_success := app_response.get('success')):
+        logger.debug(f"Request for a game id={app_id} is failed. "
+                     f"Looks like game is unavailable in {request_params.get('country_code')}"
+        )
+        package_data = build_failed_task_package_data(request_params)
+
+    elif not (app_data := response.get(str(app_id), {}).get('data')):
+        logger.warn(f"Response to request for game id={app_id} is successful, but has no data")
+        package_data = build_failed_task_package_data(request_params)
+
+    else:
+        package_data = backend_package_data_builder.build(app_data, request_params)
+
+    return {'is_success': is_success, 'data': package_data}
+
+
+def build_failed_task_package_data(request_params: dict):
+    return {
+        'id': request_params.get('app_id'),
+        'country_code': request_params.get('country_code'),
+    }
 
 
 class BackendPackageDataBuilder:

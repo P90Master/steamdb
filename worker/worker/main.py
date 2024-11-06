@@ -1,7 +1,11 @@
 import asyncio
 
+from worker.messenger import orchestrator_channel
+from worker.logger import logger
+
 
 async def main():
+    '''
     from worker.tasks import update_app_data_task, batch_update_apps_data_task
 
     while True:
@@ -12,6 +16,13 @@ async def main():
         # print(result)
 
         await asyncio.sleep(20)
+    '''
+    try:
+        orchestrator_channel.start_consuming()
+
+    except Exception as critical_error:
+        logger.critical(f"An unhandled exception received. Exception: {critical_error}")
+        return
 
 
 if __name__ == '__main__':

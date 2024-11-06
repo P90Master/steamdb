@@ -1,8 +1,11 @@
 # TODO: cluster name
 # TODO: profiles
 # TODO: healthcheck
+# TODO: depends conditions
+# TODO: hostnames
+# TODO: build
 # TODO: restart
-# TODO: worker replicas
+# TODO: worker deploy replicas
 
 services:
   db:
@@ -49,6 +52,25 @@ services:
 
   # TODO: backend-db service
 
+  orchestrator:
+    build:
+      context: /orchestrator
+    depends_on:
+      - orchestrator-worker-broker
+
+  # TODO: orchestrator-db
+  # TODO: orchestrator-celery-broker
+  # TODO: special network for orchestrator and its celery-broker
+
+  orchestrator-worker-broker:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${ORCHESTRATOR_RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${ORCHESTRATOR_RABBITMQ_PASSWORD}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
   worker:
     # TODO environment
     build:
@@ -56,7 +78,9 @@ services:
     volumes:
       - worker_logs:/worker/logs
     depends_on:
+      - orchestrator-worker-broker
       - worker-celery-broker
+    # TODO: special network for worker and its celery-broker
 
   worker-celery-broker:
     image: redis:alpine
