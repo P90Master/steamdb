@@ -15,8 +15,8 @@ class APIClientException(Exception):
 
 
 DEFAULT_EXCEPTIONS_FOR_RETRY = (
-    aiohttp.ClientResponseError,
-    aiohttp.ClientConnectionError,
+    aiohttp.client_exceptions.ClientResponseError,
+    aiohttp.client_exceptions.ClientConnectionError,
     requests.exceptions.RequestException,
     APIClientException,
 )
@@ -76,7 +76,7 @@ def handle_response_exceptions(component=__name__, method=None, url=None)-> Call
                 )
                 raise unknown_error
 
-        return async_wrapper if asyncio.iscoroutine(decorated) else sync_wrapper
+        return async_wrapper if asyncio.iscoroutinefunction(decorated) else sync_wrapper
 
     return decorator
 
@@ -126,7 +126,7 @@ def retry(timeout: int = 5, attempts: int = 2, request_exceptions: tuple[Excepti
                     else:
                         raise request_error
 
-        return async_wrapper if asyncio.iscoroutine(decorated) else sync_wrapper
+        return async_wrapper if asyncio.iscoroutinefunction(decorated) else sync_wrapper
 
     return decorator
 

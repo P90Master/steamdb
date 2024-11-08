@@ -1,10 +1,8 @@
-import asyncio
-
 from worker.messenger import orchestrator_channel
 from worker.logger import logger
 
 
-async def main():
+def main():
     '''
     from worker.tasks import update_app_data_task, batch_update_apps_data_task
 
@@ -26,4 +24,4 @@ async def main():
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()

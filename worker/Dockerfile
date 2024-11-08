@@ -11,4 +11,4 @@ RUN pip install --upgrade pip && \
 COPY ./worker /worker
 
 # TODO: entrypoint.sh
-ENTRYPOINT celery --app worker.celery.celery_app worker --loglevel=info & python -m worker.main
+ENTRYPOINT celery --app worker.celery.celery_app worker --loglevel=error & python -m worker.main
