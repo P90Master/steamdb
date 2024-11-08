@@ -30,7 +30,7 @@ class GameDetailView(APIView):
 
     # TODO PoC
     @staticmethod
-    def _get_game(self, id):
+    def _get_game(id):
         try:
             game = Game.objects.get(id=id)
         except DoesNotExist:

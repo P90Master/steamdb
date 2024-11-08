@@ -23,6 +23,7 @@ def callback(ch, method, properties, body):
         return
 
     try:
+        # FIXME asynchrony within a single task
         loop = asyncio.get_event_loop()
         result = loop.run_until_complete(worker_task(**data.get('params', {})))
 

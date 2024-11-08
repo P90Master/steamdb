@@ -28,7 +28,7 @@ class PriceStoryPointSerializer(serializers.Serializer):
 
 class GamePriceSerializer(serializers.Serializer):
     is_available = serializers.BooleanField(default=True)
-    currency = serializers.CharField(required=False, max_length=3)
+    currency = serializers.CharField(required=False, max_length=3, allow_null=True)
     price_story = PriceStoryPointSerializer(required=False, many=True)
 
     def create(self, validated_data):
@@ -106,7 +106,7 @@ class GamePackageDataSerializer(serializers.Serializer):
     name = serializers.CharField(required=False)
     country_code = serializers.CharField(required=True, max_length=3)
     is_available = serializers.BooleanField(default=True)
-    currency = serializers.CharField(required=False, max_length=3)
+    currency = serializers.CharField(required=False, max_length=3, allow_null=True)
     discount = serializers.IntegerField(min_value=0, max_value=100, default=0)
     price = serializers.DecimalField(required=False, min_value=0.0, decimal_places=2, max_digits=10)
     timestamp = serializers.DateTimeField(default=datetime.now)
