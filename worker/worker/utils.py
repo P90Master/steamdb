@@ -1,5 +1,19 @@
+import functools
+
 from worker.config import CountryCodeCurrencyMapping
 from worker.logger import logger
+
+
+def generate_task_result(decorated):
+    @functools.wraps(decorated)
+    async def wrapper(*args, **kwargs):
+        task_result = await decorated(*args, **kwargs)
+        return {
+            "is_successful": bool(task_result),
+            "data": task_result
+        }
+
+    return wrapper
 
 
 def convert_steam_app_data_response_to_backend_app_data_package(request_params, response):

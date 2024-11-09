@@ -4,7 +4,7 @@ from typing import Sized, Callable
 
 from worker.connections import steam_api_client, backend_api_client
 from worker.config import settings
-from worker.utils import convert_steam_app_data_response_to_backend_app_data_package
+from worker.utils import convert_steam_app_data_response_to_backend_app_data_package, generate_task_result
 from worker.logger import logger
 from worker.celery import execute_celery_task, get_app_list_celery_task, get_app_detail_celery_task
 
@@ -30,6 +30,7 @@ def worker_task(name: str = ""):
 
 
 @worker_task(name="request_all_apps")
+@generate_task_result
 async def request_all_apps_task():
     # TODO: wrap steam requests in celery task
     logger.info('Requesting apps list..')
@@ -37,7 +38,7 @@ async def request_all_apps_task():
     apps_collection, is_success = await execute_celery_task(celery_task=get_app_list_celery_task)
     if not is_success:
         logger.error("Requesting apps list failed")
-        return []
+        return
 
     app_list = [app.get('appid') for app in apps_collection.get('applist', {}).get('apps', {})]
     logger.info('Apps list successfully requested')
@@ -45,6 +46,7 @@ async def request_all_apps_task():
 
 
 @worker_task(name="update_app_data")
+@generate_task_result
 async def update_app_data_task(app_id: str, country_code: str = settings.DEFAULT_COUNTRY_CODE):
     # TODO: wrap steam requests in celery task
 
@@ -63,11 +65,27 @@ async def update_app_data_task(app_id: str, country_code: str = settings.DEFAULT
     logger.info(f'App data requested successfully. AppID: {app_id} CountryCode: {country_code}')
 
     backend_package = convert_steam_app_data_response_to_backend_app_data_package(request_params, app_data_response)
-    await backend_api_client.post_app_data_package(backend_package)
-    logger.info(f'App data successfully pushed to backend. AppID: {app_id} CountryCode: {country_code}')
+
+    try:
+        await backend_api_client.post_app_data_package(backend_package)
+
+    except Exception as error:
+        logger.error(
+            f"Receive an error while requesting app data."
+            f" App ID: {app_id} CountryCode: {country_code}"
+            f" Error: {error}"
+        )
+
+    else:
+        logger.info(f'App data successfully pushed to backend. AppID: {app_id} CountryCode: {country_code}')
+        return {
+            "updated_app_ids": [app_id],
+            "country_code": country_code
+        }
 
 
 @worker_task(name="batch_update_apps_data")
+@generate_task_result
 async def batch_update_apps_data_task(batch_of_app_ids: Sized, country_code: str = settings.DEFAULT_COUNTRY_CODE):
     # TODO: wrap steam requests in celery task
 
@@ -77,6 +95,14 @@ async def batch_update_apps_data_task(batch_of_app_ids: Sized, country_code: str
     )
 
     backend_request_tasks = set()
+    successfully_updated_app_ids = set()
+
+    def save_successfully_updated_app_id_and_clear_task_pool(backend_task):
+        # TODO: if task has exception (because of it asyncio.wait stopped and this in done) ?
+        backend_request_tasks.discard(backend_task)
+        updated_app_id = (backend_task.result() or {}).get('data', {}).get('id')
+        if updated_app_id:
+            successfully_updated_app_ids.add(updated_app_id)
 
     async with backend_api_client as backend_session:
         for app_id in batch_of_app_ids:
@@ -100,7 +126,7 @@ async def batch_update_apps_data_task(batch_of_app_ids: Sized, country_code: str
 
             task = asyncio.create_task(backend_session.post_app_data_package(backend_package))
             backend_request_tasks.add(task)
-            task.add_done_callback(backend_request_tasks.discard)
+            task.add_done_callback(save_successfully_updated_app_id_and_clear_task_pool)
 
         done, pending = await asyncio.wait(backend_request_tasks, return_when=asyncio.FIRST_EXCEPTION)
 
@@ -114,3 +140,8 @@ async def batch_update_apps_data_task(batch_of_app_ids: Sized, country_code: str
                 f" Error: {exc}"
                 f" Amount of canceled tasks (except task with error): {len(pending)}"
             )
+
+        return {
+            "updated_app_ids": list(successfully_updated_app_ids),
+            "country_code": country_code
+        }
