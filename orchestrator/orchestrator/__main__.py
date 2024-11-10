@@ -5,13 +5,15 @@ import pika
 import threading
 import time
 
+from orchestrator.config import settings
+
 
 def send_messages():
     worker_connection = pika.BlockingConnection(
         pika.ConnectionParameters(
-            host='orchestrator-worker-broker',
-            port=5672,
-            credentials=pika.PlainCredentials('user', 'password')
+            host=settings.RABBITMQ_HOST,
+            port=settings.RABBITMQ_PORT,
+            credentials=pika.PlainCredentials(settings.RABBITMQ_USER, settings.RABBITMQ_PASSWORD)
         )
     )
     channel = worker_connection.channel()
@@ -47,9 +49,9 @@ def send_messages():
 def consume_messages():
     worker_connection = pika.BlockingConnection(
         pika.ConnectionParameters(
-            host='orchestrator-worker-broker',
-            port=5672,
-            credentials=pika.PlainCredentials('user', 'password')
+            host=settings.RABBITMQ_HOST,
+            port=settings.RABBITMQ_PORT,
+            credentials=pika.PlainCredentials(settings.RABBITMQ_USER, settings.RABBITMQ_PASSWORD)
         )
     )
     channel = worker_connection.channel()

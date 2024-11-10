@@ -55,10 +55,28 @@ services:
   orchestrator:
     build:
       context: /orchestrator
+    environment:
+      DB_USER: ${ORCHESTRATOR_DB_USER}
+      DB_PASSWORD: ${ORCHESTRATOR_DB_PASSWORD}
+      DB_HOST: ${ORCHESTRATOR_DB_HOST}
+      DB_PORT: ${ORCHESTRATOR_DB_PORT}
+      DB_DRIVER: ${ORCHESTRATOR_DB_DRIVER}
+      DB_TYPE: ${ORCHESTRATOR_DB_TYPE}
     depends_on:
       - orchestrator-worker-broker
 
-  # TODO: orchestrator-db
+  orchestrator-db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: ${ORCHESTRATOR_DB_USER}
+      POSTGRES_PASSWORD: ${ORCHESTRATOR_DB_PASSWORD}
+      POSTGRES_DB: ${ORCHESTRATOR_DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - orchestrator-db-data:/var/lib/postgresql/data
+
   # TODO: orchestrator-celery-broker
   # TODO: special network for orchestrator and its celery-broker
 
@@ -98,5 +116,7 @@ services:
       - worker
 
 volumes:
+  # FIXME: "-" instead of "_"
   mongo_data:
   worker_logs:
+  orchestrator-db-data:

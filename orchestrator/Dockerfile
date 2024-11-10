@@ -7,4 +7,4 @@ RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
     rm requirements.txt
 
-ENTRYPOINT python -m orchestrator.main
+ENTRYPOINT python -m orchestrator

@@ -1,3 +1,5 @@
+# TODO: Move to __main__.py
+
 from worker.messenger import orchestrator_channel
 from worker.logger import logger
 
