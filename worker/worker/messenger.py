@@ -44,7 +44,7 @@ def handle_task(ch, method, properties, body):
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
         worker_task_report = {
-            "task_type": requested_task_name,
+            "task_name": requested_task_name,
             "task_result": result
         }
         worker_report_json_payload = json.dumps(worker_task_report)
