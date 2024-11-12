@@ -6,4 +6,3 @@ from orchestrator.config import settings
 
 engine = create_engine(settings.DB_URL)
 Session = sessionmaker(bind=engine)
-session = Session()

@@ -2,55 +2,52 @@ import functools
 import json
 
 import pika
+from sqlalchemy import select, insert
+
+from orchestrator.db.models import App
 
 
-class TaskManager:
-    def __init__(self, messenger_channel, db, logger):
-        self.messenger_channel = messenger_channel
-        self.db = db
-        self.logger = logger
+def trace_logs(decorated):
+    @functools.wraps(decorated)
+    def wrapper(self, *args, **kwargs):
+        task_name = decorated.__name__
+        if not hasattr(self, 'logger'):
+            raise AttributeError(f"Decorated method {task_name} doesn't have logger")
 
-        self._send_tasks = {}
-        self._receive_tasks = {}
+        self.logger.info(f"Received command to execute task: {task_name}")
 
-    @staticmethod
-    def task_name(task_name):
-        def decorator(decorated):
-            @functools.wraps(decorated)
-            def wrapper(*args, **kwargs):
-                return decorated(*args, **kwargs)
+        try:
+            result = decorated(self, *args, **kwargs)
 
-            wrapper.__name__ = task_name
-            return wrapper
+        # TODO: special exception for failed task with handled error as signal for upper handlers
+        except Exception as error:
+            self.logger.error(f'Task "{task_name}" execution failed with error: {error}')
 
-        return decorator
-
-    def trace_logs(self, decorated):
-        @functools.wraps(decorated)
-        def wrapper(*args, **kwargs):
-            task_name_ = decorated.__name__
-            self.logger.info(f"Received command to register task: {task_name_}")
-            result = decorated(*args, **kwargs)
-            self.logger.info(f"Task registered: {task_name_}")
+        else:
+            self.logger.info(f"Task executed: {task_name}")
             return result
 
-        return wrapper
+    return wrapper
 
-    def receive(self, decorated):
-        @functools.wraps(decorated)
-        def wrapper(*args, **kwargs):
-            self._receive_tasks[decorated.__name__] = decorated
-            return decorated(*args, **kwargs)
 
-        return wrapper
+class TaskManagerMeta(type):
+    def __new__(cls, name, bases, attrs):
+        new_class = super().__new__(cls, name, bases, attrs)
+        new_class._receive_tasks = {}
 
-    def send(self, decorated):
-        @functools.wraps(decorated)
-        def wrapper(*args, **kwargs):
-            self._send_tasks[decorated.__name__] = decorated
-            return decorated(*args, **kwargs)
+        for attr_name, attr_value in attrs.items():
+            if callable(attr_value) and attr_name.startswith('receive__'):
+                task_name =  attr_name[attr_name.rfind("__") + 2:]
+                new_class._receive_tasks[task_name] = attr_value
 
-        return wrapper
+        return new_class
+
+
+class TaskManager(metaclass=TaskManagerMeta):
+    def __init__(self, messenger_channel, session_maker, logger):
+        self.messenger_channel = messenger_channel
+        self.db_session_maker = session_maker
+        self.logger = logger
 
     def get_receive_task_handler(self, task_name):
         return self._receive_tasks.get(task_name)
@@ -66,7 +63,7 @@ class TaskManager:
             )
         )
 
-    def handle_received_task_result(self, ch, method, properties, body):
+    def handle_received_task_message(self, ch, method, properties, body):
         data = json.loads(body)
         if not (requested_task_name := data.get('task')):
             # TODO: id of message & logging it (broker deletes messages - save wrong messages for debug?)
@@ -81,7 +78,7 @@ class TaskManager:
             return
 
         try:
-            result = handle_received_task(self, ch, method, properties, body)
+            result = handle_received_task(self, ch, method, properties, data)
 
         except TypeError:
             self.logger.error(f'The parameters passed to the task "{requested_task_name}" do not match its signature')
@@ -98,9 +95,7 @@ class TaskManager:
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
     @trace_logs
-    @send
-    @task_name("request_all_apps")
-    def request_for_actual_app_list(self):
+    def request_all_apps(self):
         worker_task_data = {
             "task": "request_all_apps",
             "params": {}
@@ -108,16 +103,27 @@ class TaskManager:
         self._send_message(worker_task_data)
 
     @trace_logs
-    @send
     def request_for_app_data(self, app_id: str, country_code: str):
         pass
 
     @trace_logs
-    @send
     def bulk_request_for_apps_data(self, app_id: str, country_code: str):
         pass
 
     @trace_logs
-    @receive
-    def update_app_list(self, ch, method, properties, body):
-        pass
+    def receive__update_app_list(self, ch, method, properties, data):
+        if not (app_ids := data.get('task_result')):
+            self.logger.error(f'Task "{__name__}" received empty app ids list.')
+            return
+
+        actual_ids = set(app_ids)
+
+        existing_ids_query = select(App.c.id)
+        with self.db_session_maker() as session:
+            existing_ids = {row[0] for row in session.execute(existing_ids_query)}
+            new_ids = actual_ids - existing_ids
+
+            if new_ids:
+                stmt = insert(App).values([{"id": app_id} for app_id in new_ids])
+                session.execute(stmt)
+

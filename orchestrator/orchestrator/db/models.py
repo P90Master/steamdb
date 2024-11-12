@@ -11,7 +11,7 @@ class App(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(256))
-    last_updated = Column(DateTime, default=datetime.utcnow)
+    last_updated = Column(DateTime, default=datetime.now)
     is_updating = Column(Boolean, default=False)
 
     def __repr__(self):
