@@ -1,19 +1,67 @@
+import asyncio
 import functools
 
 from worker.config import CountryCodeCurrencyMapping
 from worker.logger import logger
 
 
-def generate_task_result(decorated):
-    @functools.wraps(decorated)
-    async def wrapper(*args, **kwargs):
-        task_result = await decorated(*args, **kwargs)
-        return {
-            "is_successful": bool(task_result),
-            "data": task_result
-        }
+class HandledException(Exception):
+    def __init__(self, original_exception):
+        if isinstance(original_exception, Exception):
+            self.message = str(original_exception)
+            self.code = getattr(original_exception, 'code', None)
 
-    return wrapper
+        else:
+            raise ValueError("Original exception must be an instance of Exception")
+
+        super().__init__(self.message)
+
+
+def trace_logs(decorated):
+    @functools.wraps(decorated)
+    def sync_wrapper(self, *args, **kwargs):
+        task_name = decorated.__name__
+        if not hasattr(self, 'logger'):
+            raise AttributeError(f"Decorated method {task_name} doesn't have logger")
+
+        self.logger.info(f"Received command to execute task: {task_name}")
+
+        try:
+            result = decorated(self, *args, **kwargs)
+
+        except HandledException as handled_exception:
+            raise handled_exception
+
+        except Exception as error:
+            self.logger.error(f'Task "{task_name}" execution failed with error: {error}')
+            raise HandledException(error)
+
+        else:
+            self.logger.info(f"Task executed: {task_name}")
+            return result
+
+    async def async_wrapper(self, *args, **kwargs):
+        task_name = decorated.__name__
+        if not hasattr(self, 'logger'):
+            raise AttributeError(f"Decorated method {task_name} doesn't have logger")
+
+        self.logger.info(f"Received command to execute task: {task_name}")
+
+        try:
+            result = await decorated(self, *args, **kwargs)
+
+        except HandledException as handled_exception:
+            raise handled_exception
+
+        except Exception as error:
+            self.logger.error(f'Task "{task_name}" execution failed with error: {error}')
+            raise HandledException(error)
+
+        else:
+            self.logger.info(f"Task executed: {task_name}")
+            return result
+
+    return async_wrapper if asyncio.iscoroutinefunction(decorated) else sync_wrapper
 
 
 def convert_steam_app_data_response_to_backend_app_data_package(request_params, response):

@@ -42,7 +42,7 @@ class TaskManagerMeta(type):
 
         return new_class
 
-
+# FIXME: outdated
 class TaskManager(metaclass=TaskManagerMeta):
     def __init__(self, messenger_channel, session_maker, logger):
         self.messenger_channel = messenger_channel

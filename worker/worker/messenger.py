@@ -7,7 +7,7 @@ from worker.connections import orchestrator_connection
 from worker.logger import logger
 from worker.tasks import worker_tasks_registry
 
-
+# FIXME: outdated
 def handle_task(ch, method, properties, body):
     logger.debug(f"Received message from orchestrator {body}")
     data = json.loads(body)
