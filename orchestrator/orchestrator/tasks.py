@@ -127,3 +127,6 @@ class TaskManager(metaclass=TaskManagerMeta):
                 stmt = insert(App).values([{"id": app_id} for app_id in new_ids])
                 session.execute(stmt)
 
+    @trace_logs
+    def receive__update_apps_status(self, ch, method, properties, data):
+        raise NotImplemented

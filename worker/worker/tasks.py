@@ -70,52 +70,49 @@ class TaskManager(metaclass=TaskManagerMeta):
             return
 
         try:
-            result = handle_received_task(self, ch, method, properties, data)
+            handle_received_task(self, ch, method, properties, data)
 
         except TypeError:
-            self.logger.error(f'The parameters passed to the task "{requested_task_name}" do not match its signature')
+            error_msg = f'The parameters passed to the task "{requested_task_name}" do not match its signature'
+            self.logger.error(error_msg)
             ch.basic_reject(delivery_tag=method.delivery_tag)
+            raise HandledException(error_msg)
 
-        except Exception as unhandled:
+        except HandledException as handled_exception:
             ch.basic_reject(delivery_tag=method.delivery_tag)
-            raise unhandled
+            raise handled_exception
+
+        except Exception as unhandled_error:
+            error_msg = f'Task "{requested_task_name}" execution failed with error: {unhandled_error}'
+            self.logger.error(error_msg)
+            ch.basic_reject(delivery_tag=method.delivery_tag)
+            raise HandledException(error_msg)
 
         else:
-            self.logger.debug(f'Message containing the request to perform task "{requested_task_name}"'
-                         f' was processed successfully.'
-                         f' Result: {result}')
+            self.logger.debug(
+                f'Message containing the request to perform task "{requested_task_name}"'
+                f' was processed successfully.'
+            )
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
     @trace_logs
-    def receive_task__request_apps_list(self, ch, method, properties, body):
-        result = self.execute_task(self._request_apps_list_task)
+    def receive_task__request_apps_list(self, ch, method, properties, data):
+        async def _task():
+            self.logger.info('Requesting apps list..')
+
+            apps_collection, is_success = await execute_celery_task(celery_task=get_app_list_celery_task)
+            if not is_success:
+                error_msg = "Requesting apps list failed"
+                logger.error(error_msg)
+                raise HandledException(error_msg)
+
+            app_list = [app.get('appid') for app in apps_collection.get('applist', {}).get('apps', {})]
+            self.logger.info('Apps list successfully requested')
+            return app_list
+
+        result = self.execute_task(_task)
         orchestrator_task_context = {
-            "task_name": "update_app_list",
-            "params": {
-                "app_ids": result
-            }
-        }
-        self._register_task(orchestrator_task_context)
-
-    async def _request_apps_list_task(self):
-        logger.info('Requesting apps list..')
-
-        apps_collection, is_success = await execute_celery_task(celery_task=get_app_list_celery_task)
-        if not is_success:
-            logger.error("Requesting apps list failed")
-            return
-
-        app_list = [app.get('appid') for app in apps_collection.get('applist', {}).get('apps', {})]
-        logger.info('Apps list successfully requested')
-        return app_list
-
-
-# FIXME: code below is outdated ##############################################################
-
-    @trace_logs
-    def receive_task__request_app_data(self, ch, method, properties, body):
-        result = self.execute_task(self._request_app_data_task)(ch, method, properties, body)
-        orchestrator_task_context = {
+            # TODO: task names as settings consts
             "task_name": "update_app_list",
             "params": {
                 "app_ids": result
@@ -124,40 +121,64 @@ class TaskManager(metaclass=TaskManagerMeta):
         self._register_task(orchestrator_task_context)
 
     @trace_logs
-    async def _request_app_data_task(self, app_id: str, country_code: str = settings.DEFAULT_COUNTRY_CODE):
-        logger.info(f'Requesting app data. AppID: {app_id} CountryCode: {country_code}')
+    def receive_task__request_app_data(self, ch, method, properties, data):
+        async def _task():
+            self.logger.info(f'Requesting app data. AppID: {app_id} CountryCode: {country_code}')
 
-        request_params = {
-            'app_id': app_id,
-            'country_code': country_code
-        }
-
-        app_data_response, is_success = await execute_celery_task(celery_task=get_app_detail_celery_task,
-                                                                  **request_params)
-        if not is_success:
-            logger.error(f"Requesting app data failed. AppID: {app_id} CountryCode: {country_code}")
-            return
-
-        logger.info(f'App data requested successfully. AppID: {app_id} CountryCode: {country_code}')
-
-        backend_package = convert_steam_app_data_response_to_backend_app_data_package(request_params, app_data_response)
-
-        try:
-            await self.backend_api_client.post_app_data_package(backend_package)
-
-        except Exception as error:
-            logger.error(
-                f"Receive an error while requesting app data."
-                f" App ID: {app_id} CountryCode: {country_code}"
-                f" Error: {error}"
+            request_params = {'app_id': app_id, 'country_code': country_code}
+            app_data_response, is_success = await execute_celery_task(
+                celery_task=get_app_detail_celery_task,
+                **request_params
             )
+            if not is_success:
+                error_msg = f"Requesting app data from steam failed. AppID: {app_id} CountryCode: {country_code}"
+                self.logger.error(error_msg)
+                raise HandledException(error_msg)
 
-        else:
-            logger.info(f'App data successfully pushed to backend. AppID: {app_id} CountryCode: {country_code}')
+            self.logger.info(f'App data requested successfully. AppID: {app_id} CountryCode: {country_code}')
+            backend_package = convert_steam_app_data_response_to_backend_app_data_package(request_params,
+                                                                                          app_data_response)
+            try:
+                await self.backend_api_client.post_app_data_package(backend_package)
+                # TODO: Record update time - when request was sent to backend (instead of time.now() on orchestrator)
+
+            except Exception as unhandled_error:
+                error_message = (
+                    # TODO: 'Task "request_app_data": ' prefix in consts
+                    f'Task "request_app_data": Receive an error while requesting app data.'
+                    f" App ID: {app_id} CountryCode: {country_code}"
+                    f" Error: {unhandled_error}"
+                )
+                self.logger.error(error_message)
+                raise HandledException(error_message)
+
+            self.logger.info(f'App data successfully pushed to backend. AppID: {app_id} CountryCode: {country_code}')
             return {
                 "updated_app_ids": [app_id],
                 "country_code": country_code
             }
+
+        if not (app_id := data.get('app_id')):
+            error_msg = 'Task "request_app_data": No app_id specified in app data request'
+            self.logger.error(error_msg)
+            raise HandledException(error_msg)
+
+        if not (country_code := data.get('country_code', settings.DEFAULT_COUNTRY_CODE)):
+            self.logger.warning(
+                f'Task "request_app_data": No country specified for app_id {app_id} 13 data request. '
+                f'Default country selected - {country_code}'
+            )
+
+        result = self.execute_task(_task)()
+        orchestrator_task_context = {
+            "task_name": "update_apps_status",
+            "params": {
+                "app_ids": result
+            }
+        }
+        self._register_task(orchestrator_task_context)
+
+    # FIXME: code below is outdated ##############################################################
 
     @trace_logs
     async def receive_task__request_batch_of_apps_data(

@@ -6,15 +6,7 @@ from worker.logger import logger
 
 
 class HandledException(Exception):
-    def __init__(self, original_exception):
-        if isinstance(original_exception, Exception):
-            self.message = str(original_exception)
-            self.code = getattr(original_exception, 'code', None)
-
-        else:
-            raise ValueError("Original exception must be an instance of Exception")
-
-        super().__init__(self.message)
+    pass
 
 
 def trace_logs(decorated):
@@ -33,8 +25,9 @@ def trace_logs(decorated):
             raise handled_exception
 
         except Exception as error:
-            self.logger.error(f'Task "{task_name}" execution failed with error: {error}')
-            raise HandledException(error)
+            error_message = f'Task "{task_name}" execution failed with error: {error}'
+            self.logger.error(error_message)
+            raise HandledException(error_message)
 
         else:
             self.logger.info(f"Task executed: {task_name}")
@@ -54,8 +47,9 @@ def trace_logs(decorated):
             raise handled_exception
 
         except Exception as error:
-            self.logger.error(f'Task "{task_name}" execution failed with error: {error}')
-            raise HandledException(error)
+            error_message = f'Task "{task_name}" execution failed with error: {error}'
+            self.logger.error(error_message)
+            raise HandledException(error_message)
 
         else:
             self.logger.info(f"Task executed: {task_name}")
