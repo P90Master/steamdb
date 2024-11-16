@@ -40,7 +40,7 @@ class OrchestratorSettings(BaseSettings):
     RABBITMQ_OUTCOME_QUERY: str = 'tasks_for_workers'
 
     LOGGER_WRITE_IN_FILE: bool = True
-    LOG_FILES_PATH: str = 'logs'
+    LOGGER_LOG_FILES_PATH: str = 'logs'
 
     class Config:
         env_file = '.env'

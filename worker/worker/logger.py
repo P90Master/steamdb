@@ -18,7 +18,7 @@ def get_logger(settings, name=__name__):
         logger.setLevel(logging.INFO)
 
     if settings.LOGGER_WRITE_IN_FILE:
-        log_directory = os.path.join('worker', settings.LOG_FILES_PATH)
+        log_directory = os.path.join('worker', settings.LOGGER_LOG_FILES_PATH)
 
         if not os.path.exists(log_directory):
             os.makedirs(log_directory)

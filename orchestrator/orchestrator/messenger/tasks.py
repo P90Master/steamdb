@@ -8,6 +8,7 @@ import pika
 from sqlalchemy import select, insert, update
 
 from orchestrator.config import settings
+from orchestrator.logger import get_logger
 from orchestrator.db import App
 from .utils import trace_logs, HandledException
 
@@ -26,10 +27,10 @@ class TaskManagerMeta(type):
 
 
 class TaskManager(metaclass=TaskManagerMeta):
-    def __init__(self, messenger_channel, session_maker, logger):
+    def __init__(self, messenger_channel, session_maker):
         self.messenger_channel = messenger_channel
         self.db_session_maker = session_maker
-        self.logger = logger
+        self.logger = get_logger(settings)
 
     def execute_task(self, task):
         @functools.wraps(task)

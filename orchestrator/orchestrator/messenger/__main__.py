@@ -3,6 +3,7 @@ import threading
 import time
 
 from orchestrator.config import settings
+from orchestrator.logger import get_logger
 from orchestrator.db import Session
 from .connections import orchestrator_channel
 from .tasks import TaskManager
@@ -11,7 +12,7 @@ from .utils import HandledException
 
 # FIXME: mock celery scheduled tasks & commands from API
 def send_messages():
-    logger = settings.LOGGER
+    logger = get_logger(settings, name='messenger')
 
     worker_connection = pika.BlockingConnection(
         pika.ConnectionParameters(
@@ -24,7 +25,7 @@ def send_messages():
     channel.queue_declare(queue=settings.RABBITMQ_OUTCOME_QUERY, durable=True)
     channel.basic_qos(prefetch_count=1)
 
-    task_manager = TaskManager(channel, Session, logger)
+    task_manager = TaskManager(channel, Session)
 
     try:
         while True:
@@ -39,12 +40,11 @@ def send_messages():
 
 
 def consume_messages():
-    logger = settings.LOGGER
+    logger = get_logger(settings, name='messenger')
 
     task_manager = TaskManager(
         messenger_channel=orchestrator_channel,
-        session_maker=Session,
-        logger=logger
+        session_maker=Session
     )
 
     def handle_income_task(ch, method, properties, body):

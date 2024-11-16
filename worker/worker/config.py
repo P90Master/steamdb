@@ -32,7 +32,7 @@ class WorkerSettings(BaseSettings):
     STEAM_APP_DETAIL_URL: str = 'http://store.steampowered.com/api/appdetails'
 
     LOGGER_WRITE_IN_FILE: bool = True
-    LOG_FILES_PATH: str = 'logs'
+    LOGGER_LOG_FILES_PATH: str = 'logs'
 
     CELERY_NAME: str = "requests_to_steam"
     CELERY_BROKER_HOST: str = "worker-celery-broker"
