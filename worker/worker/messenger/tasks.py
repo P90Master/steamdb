@@ -44,8 +44,7 @@ class TaskManager(metaclass=TaskManagerMeta):
         data_json_payload = json.dumps(data)
         self.messenger_channel.basic_publish(
             exchange='',
-            # FIXME: queues
-            routing_key='bye-1',
+            routing_key=settings.RABBITMQ_OUTCOME_QUERY,
             body=data_json_payload,
             properties=pika.BasicProperties(
                 delivery_mode=2,

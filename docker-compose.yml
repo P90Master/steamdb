@@ -6,6 +6,7 @@
 # TODO: build
 # TODO: restart
 # TODO: worker deploy replicas
+# TODO: defaults in environment
 
 services:
   db:
@@ -63,8 +64,11 @@ services:
       DB_NAME: ${ORCHESTRATOR_DB_NAME}
       DB_DRIVER: ${ORCHESTRATOR_DB_DRIVER}
       DB_TYPE: ${ORCHESTRATOR_DB_TYPE}
+    volumes:
+      - orchestrator-logs:/orchestrator/logs
     depends_on:
       - orchestrator-worker-broker
+      - orchestrator-db
 
   orchestrator-db:
     image: postgres:16
@@ -78,22 +82,46 @@ services:
     volumes:
       - orchestrator-db-data:/var/lib/postgresql/data
 
-  # TODO: orchestrator-celery-broker
-  # TODO: special network for orchestrator and its celery-broker
+  # TODO: orchestrator-celery-beat
+  # TODO: special network for orchestrator and its celery-beat
 
   orchestrator-worker-broker:
     image: rabbitmq:3-management
     environment:
-      RABBITMQ_DEFAULT_USER: ${ORCHESTRATOR_RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${ORCHESTRATOR_RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     ports:
       - "5672:5672"
       - "15672:15672"
 
   worker:
-    # TODO environment
     build:
       context: /worker
+    environment:
+      DEBUG: ${DEBUG}
+      LOGGER_WRITE_IN_FILE: ${WORKER_LOGGER_WRITE_IN_FILE}
+
+      STEAM_APP_LIST_URL: ${STEAM_APP_LIST_URL}
+      STEAM_APP_DETAIL_URL: ${STEAM_APP_DETAIL_URL}
+
+      BACKEND_PROTOCOL: ${BACKEND_PROTOCOL}
+      BACKEND_HOST: ${BACKEND_HOST}
+      BACKEND_PORT: ${BACKEND_PORT}
+      BACKEND_API_VERSION: ${BACKEND_API_VERSION}
+
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_INCOME_QUERY: ${WORKER_RABBITMQ_INCOME_QUERY}
+      RABBITMQ_OUTCOME_QUERY: ${WORKER_RABBITMQ_OUTCOME_QUERY}
+
+      CELERY_NAME: ${WORKER_CELERY_NAME}
+      CELERY_BROKER_HOST: ${WORKER_CELERY_BROKER_HOST}
+      CELERY_BROKER_PORT: ${WORKER_CELERY_BROKER_PORT}
+      CELERY_BROKER_PROTOCOL: ${WORKER_CELERY_BROKER_PROTOCOL}
+      CELERY_TASK_COMMON_RATE_LIMIT: ${WORKER_CELERY_TASK_COMMON_RATE_LIMIT}
+      CELERY_TASK_TIME_LIMIT: ${WORKER_CELERY_TASK_TIME_LIMIT}
     volumes:
       - worker_logs:/worker/logs
     depends_on:
@@ -106,9 +134,10 @@ services:
     ports:
       - '6379:6379'
 
-  worker-flower:
+  worker-celery-flower:
     # TODO: docker-compose.dev.yml
     image: mher/flower
+    # TODO: build broker url
     command: celery --broker=redis://worker-celery-broker:6379/0 flower
     ports:
       - "5555:5555"
@@ -121,3 +150,4 @@ volumes:
   mongo_data:
   worker_logs:
   orchestrator-db-data:
+  orchestrator-logs:

@@ -19,7 +19,7 @@ def main():
     def handle_income_task(ch, method, properties, body):
         task_manager.handle_received_task_message(ch, method, properties, body)
 
-    orchestrator_channel.basic_consume(queue='hello-1', on_message_callback=handle_income_task)
+    orchestrator_channel.basic_consume(queue=settings.RABBITMQ_INCOME_QUERY, on_message_callback=handle_income_task)
 
     while True:
         try:
