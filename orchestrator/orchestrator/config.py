@@ -19,6 +19,7 @@ class CountryCodeCurrencyMapping(Enum):
 
 class OrchestratorSettings(BaseSettings):
     DEFAULT_COUNTRY_CODE: str = CountryCodes.united_states.value
+    BATCH_SIZE_OF_UPDATING_STEAM_APPS: int = 100
     DEBUG: bool = True
 
     DB_HOST: str = 'orchestrator-db'
@@ -35,10 +36,8 @@ class OrchestratorSettings(BaseSettings):
     RABBITMQ_PORT: int = 5672
     RABBITMQ_USER: str = 'user'
     RABBITMQ_PASSWORD: str = 'password'
-
-    # TODO: advanced URL builder (like validator func)
-    BACKEND_HOST: str = 'http://backend:8000'
-    BACKEND_API_VERSION: str = 'v1'
+    RABBITMQ_INCOME_QUERY: str = 'tasks_for_orchestrator'
+    RABBITMQ_OUTCOME_QUERY: str = 'tasks_for_workers'
 
     LOGGER_WRITE_IN_FILE: bool = True
     LOG_FILES_PATH: str = 'logs'
