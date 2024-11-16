@@ -2,6 +2,8 @@ from enum import Enum
 
 from pydantic_settings import BaseSettings
 
+from .logger import logger
+
 
 class CountryCodes(Enum):
     united_states = 'US'
@@ -20,6 +22,7 @@ class CountryCodeCurrencyMapping(Enum):
 class WorkerSettings(BaseSettings):
     DEFAULT_COUNTRY_CODE: str = CountryCodes.united_states.value
     DEBUG: bool = True
+    LOGGER = logger
 
     BACKEND_HOST: str = 'http://backend:8000'
     BACKEND_API_VERSION: str = 'v1'

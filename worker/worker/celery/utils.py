@@ -1,9 +1,12 @@
 import asyncio
 
-from worker.logger import logger
+from worker.config import settings
 
 # FIXME rename current package to avoid collision with 3rd party?
 from celery.exceptions import SoftTimeLimitExceeded
+
+
+logger = settings.LOGGER
 
 
 async def execute_celery_task(celery_task, *task_args, **task_kwargs):
@@ -31,6 +34,6 @@ async def execute_celery_task(celery_task, *task_args, **task_kwargs):
 
 async def wait_celery_task_result(celery_task):
     while not celery_task.ready():
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.25)
 
     return celery_task.result

@@ -2,7 +2,6 @@ import asyncio
 import functools
 
 from worker.config import CountryCodeCurrencyMapping
-from worker.logger import logger
 
 
 class HandledException(Exception):
@@ -58,7 +57,7 @@ def trace_logs(decorated):
     return async_wrapper if asyncio.iscoroutinefunction(decorated) else sync_wrapper
 
 
-def convert_steam_app_data_response_to_backend_app_data_package(request_params, response):
+def convert_steam_app_data_response_to_backend_app_data_package(request_params, response, logger):
     app_id = request_params.get('app_id')
     app_response = response.get(str(app_id))
 

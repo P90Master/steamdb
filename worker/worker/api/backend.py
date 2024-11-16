@@ -1,11 +1,12 @@
 import abc
 from typing import Dict, Any
+from enum import Enum
 
 import aiohttp
-from enum import Enum
 
 from .base import APIClientException, BaseAsyncAPIClient, BaseAsyncSessionClient, handle_response_exceptions, retry
 from worker.config import settings
+
 
 class BackendAPIClientException(APIClientException):
     pass

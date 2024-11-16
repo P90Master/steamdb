@@ -1,14 +1,12 @@
 import asyncio
 import functools
 import json
-from typing import Sized
 
 import pika
 
 from worker.config import settings
-from worker.utils import convert_steam_app_data_response_to_backend_app_data_package, trace_logs, HandledException
-from worker.logger import logger
 from worker.celery import execute_celery_task, get_app_list_celery_task, get_app_detail_celery_task
+from .utils import convert_steam_app_data_response_to_backend_app_data_package, trace_logs, HandledException
 
 
 class TaskManagerMeta(type):
@@ -42,7 +40,7 @@ class TaskManager(metaclass=TaskManagerMeta):
     def get_receive_task_handler(self, task_name):
         return self._receive_tasks.get(task_name)
 
-    def _register_task(self, data):
+    def register_response_task(self, data):
         data_json_payload = json.dumps(data)
         self.messenger_channel.basic_publish(
             exchange='',
@@ -103,7 +101,7 @@ class TaskManager(metaclass=TaskManagerMeta):
             apps_collection, is_success = await execute_celery_task(celery_task=get_app_list_celery_task)
             if not is_success:
                 error_msg = "Requesting apps list failed"
-                logger.error(error_msg)
+                self.logger.error(error_msg)
                 raise HandledException(error_msg)
 
             app_list = [app.get('appid') for app in apps_collection.get('applist', {}).get('apps', {})]
@@ -118,7 +116,7 @@ class TaskManager(metaclass=TaskManagerMeta):
                 "app_ids": result
             }
         }
-        self._register_task(orchestrator_task_context)
+        self.register_response_task(orchestrator_task_context)
 
     @trace_logs
     def receive_task__request_app_data(self, ch, method, properties, data):
@@ -131,13 +129,16 @@ class TaskManager(metaclass=TaskManagerMeta):
                 **request_params
             )
             if not is_success:
-                error_msg = f"Requesting app data from steam failed. AppID: {app_id} CountryCode: {country_code}"
-                self.logger.error(error_msg)
-                raise HandledException(error_msg)
+                error_message = f"Requesting app data from steam failed. AppID: {app_id} CountryCode: {country_code}"
+                self.logger.error(error_message)
+                raise HandledException(error_message)
 
             self.logger.info(f'App data requested successfully. AppID: {app_id} CountryCode: {country_code}')
-            backend_package = convert_steam_app_data_response_to_backend_app_data_package(request_params,
-                                                                                          app_data_response)
+            backend_package = convert_steam_app_data_response_to_backend_app_data_package(
+                request_params,
+                app_data_response,
+                self.logger
+            )
             try:
                 await self.backend_api_client.post_app_data_package(backend_package)
                 # TODO: Record update time - when request was sent to backend (instead of time.now() on orchestrator)
@@ -158,6 +159,8 @@ class TaskManager(metaclass=TaskManagerMeta):
                 "country_code": country_code
             }
 
+        # main body ###########################
+
         if not (app_id := data.get('app_id')):
             error_msg = 'Task "request_app_data": No app_id specified in app data request'
             self.logger.error(error_msg)
@@ -165,7 +168,7 @@ class TaskManager(metaclass=TaskManagerMeta):
 
         if not (country_code := data.get('country_code', settings.DEFAULT_COUNTRY_CODE)):
             self.logger.warning(
-                f'Task "request_app_data": No country specified for app_id {app_id} 13 data request. '
+                f'Task "request_app_data": No country specified for app_id {app_id} data request. '
                 f'Default country selected - {country_code}'
             )
 
@@ -176,71 +179,85 @@ class TaskManager(metaclass=TaskManagerMeta):
                 "app_ids": result
             }
         }
-        self._register_task(orchestrator_task_context)
-
-    # FIXME: code below is outdated ##############################################################
+        self.register_response_task(orchestrator_task_context)
 
     @trace_logs
-    async def receive_task__request_batch_of_apps_data(
-            self,
-            batch_of_app_ids: Sized,
-            country_code: str = settings.DEFAULT_COUNTRY_CODE
-    ):
-        # TODO: wrap steam requests in celery task
+    def receive_task__request_batch_of_apps_data(self, ch, method, properties, data):
+        async def _task():
+            self.logger.info(
+                f'Requesting batch of apps data.'
+                f' Batch of app IDs size: {len(batch_of_app_ids)} CountryCode: {country_code}'
+            )
 
-        logger.info(
-            f'Requesting batch of apps data.'
-            f' Batch of app IDs size: {len(batch_of_app_ids)} CountryCode: {country_code}'
-        )
+            backend_request_tasks = set()
+            successfully_updated_app_ids = set()
 
-        backend_request_tasks = set()
-        successfully_updated_app_ids = set()
+            def save_successfully_updated_app_id_and_clear_task_pool(backend_task):
+                # TODO: if task has exception (because of it asyncio.wait stopped and this in done) ?
+                backend_request_tasks.discard(backend_task)
+                updated_app_id = (backend_task.result() or {}).get('data', {}).get('id')
+                if updated_app_id:
+                    successfully_updated_app_ids.add(updated_app_id)
 
-        def save_successfully_updated_app_id_and_clear_task_pool(backend_task):
-            # TODO: if task has exception (because of it asyncio.wait stopped and this in done) ?
-            backend_request_tasks.discard(backend_task)
-            updated_app_id = (backend_task.result() or {}).get('data', {}).get('id')
-            if updated_app_id:
-                successfully_updated_app_ids.add(updated_app_id)
+            async with self.backend_api_client as backend_session:
+                for app_id in batch_of_app_ids:
+                    request_params = {
+                        'app_id': app_id,
+                        'country_code': country_code
+                    }
 
-        async with self.backend_api_client as backend_session:
-            for app_id in batch_of_app_ids:
-                request_params = {
-                    'app_id': app_id,
-                    'country_code': country_code
+                    app_data_response, is_success = await execute_celery_task(
+                        celery_task=get_app_detail_celery_task,
+                        **request_params
+                    )
+                    if not is_success:
+                        self.logger.error(f"Requesting app data failed. AppID: {app_id} CountryCode: {country_code}")
+                        continue
+
+                    backend_package = convert_steam_app_data_response_to_backend_app_data_package(
+                        request_params,
+                        app_data_response,
+                        self.logger
+                    )
+
+                    task = asyncio.create_task(backend_session.post_app_data_package(backend_package))
+                    backend_request_tasks.add(task)
+                    task.add_done_callback(save_successfully_updated_app_id_and_clear_task_pool)
+
+                done, pending = await asyncio.wait(backend_request_tasks, return_when=asyncio.FIRST_EXCEPTION)
+
+                if exc := done.pop().exception():
+                    for task in pending:
+                        task.cancel()
+
+                    self.logger.error(
+                        f"Receive an error while requesting batch of apps data."
+                        f" Batch of app IDs size: {len(batch_of_app_ids)} CountryCode: {country_code}"
+                        f" Error: {exc}"
+                        f" Amount of canceled tasks (except task with error): {len(pending)}"
+                    )
+
+                return {
+                    "updated_app_ids": list(successfully_updated_app_ids),
+                    "country_code": country_code
                 }
 
-                app_data_response, is_success = await execute_celery_task(
-                    celery_task=get_app_detail_celery_task,
-                    **request_params
-                )
-                if not is_success:
-                    logger.error(f"Requesting app data failed. AppID: {app_id} CountryCode: {country_code}")
-                    continue
+        # main body ###########################
 
-                backend_package = convert_steam_app_data_response_to_backend_app_data_package(
-                    request_params,
-                    app_data_response
-                )
+        if not (batch_of_app_ids := data.get('app_id', [])):
+            self.logger.warning('Task "request_app_data": Receive empty batch of app ids')
 
-                task = asyncio.create_task(backend_session.post_app_data_package(backend_package))
-                backend_request_tasks.add(task)
-                task.add_done_callback(save_successfully_updated_app_id_and_clear_task_pool)
+        if not (country_code := data.get('country_code', settings.DEFAULT_COUNTRY_CODE)):
+            self.logger.warning(
+                f'Task "request_app_data": No country specified for batch of apps data request. '
+                f'Default country selected - {country_code}'
+            )
 
-            done, pending = await asyncio.wait(backend_request_tasks, return_when=asyncio.FIRST_EXCEPTION)
-
-            if exc := done.pop().exception():
-                for task in pending:
-                    task.cancel()
-
-                logger.error(
-                    f"Receive an error while requesting batch of apps data."
-                    f" Batch of app IDs size: {len(batch_of_app_ids)} CountryCode: {country_code}"
-                    f" Error: {exc}"
-                    f" Amount of canceled tasks (except task with error): {len(pending)}"
-                )
-
-            return {
-                "updated_app_ids": list(successfully_updated_app_ids),
-                "country_code": country_code
+        result = self.execute_task(_task)()
+        orchestrator_task_context = {
+            "task_name": "update_apps_status",
+            "params": {
+                "app_ids": result
             }
+        }
+        self.register_response_task(orchestrator_task_context)

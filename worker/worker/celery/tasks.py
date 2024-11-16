@@ -1,6 +1,6 @@
 from worker.celery.app import celery_app
 from worker.config import settings
-from worker.connections import steam_api_client
+from worker.api import steam_api_client
 
 
 @celery_app.task(
