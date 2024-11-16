@@ -1,12 +1,13 @@
 import asyncio
 
 from worker.config import settings
+from worker.logger import get_logger
 
 # FIXME rename current package to avoid collision with 3rd party?
 from celery.exceptions import SoftTimeLimitExceeded
 
 
-logger = settings.LOGGER
+logger = get_logger(settings)
 
 
 async def execute_celery_task(celery_task, *task_args, **task_kwargs):

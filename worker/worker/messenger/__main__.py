@@ -1,4 +1,5 @@
 from worker.setting import settings
+from worker.logger import get_logger
 from worker.api import backend_api_client, steam_api_client
 
 from .connections import orchestrator_channel
@@ -7,13 +8,12 @@ from .utils import HandledException
 
 
 def main():
-    logger = settings.LOGGER
+    logger = get_logger(settings, name='messenger')
 
     task_manager = TaskManager(
         messenger_channel=orchestrator_channel,
         backend_api_client=backend_api_client,
-        steam_api_client=steam_api_client,
-        logger=logger
+        steam_api_client=steam_api_client
     )
 
     def handle_income_task(ch, method, properties, body):

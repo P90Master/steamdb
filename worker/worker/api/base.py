@@ -7,10 +7,11 @@ from typing import Callable
 import aiohttp
 import requests
 
-from worker.settings import config
+from worker.config import settings
+from worker.logger import get_logger
 
 
-logger = config.LOGGER
+logger = get_logger(settings)
 
 
 class APIClientException(Exception):

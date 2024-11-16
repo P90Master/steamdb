@@ -5,6 +5,7 @@ import json
 import pika
 
 from worker.config import settings
+from worker.logger import get_logger
 from worker.celery import execute_celery_task, get_app_list_celery_task, get_app_detail_celery_task
 from .utils import convert_steam_app_data_response_to_backend_app_data_package, trace_logs, HandledException
 
@@ -23,11 +24,11 @@ class TaskManagerMeta(type):
 
 
 class TaskManager(metaclass=TaskManagerMeta):
-    def __init__(self, messenger_channel, backend_api_client, steam_api_client, logger):
+    def __init__(self, messenger_channel, backend_api_client, steam_api_client):
         self.messenger_channel = messenger_channel
         self.backend_api_client = backend_api_client
         self.steam_api_client = steam_api_client
-        self.logger = logger
+        self.logger = get_logger(settings)
 
     def execute_task(self, task):
         @functools.wraps(task)
@@ -40,12 +41,12 @@ class TaskManager(metaclass=TaskManagerMeta):
     def get_receive_task_handler(self, task_name):
         return self._receive_tasks.get(task_name)
 
-    def register_response_task(self, data):
-        data_json_payload = json.dumps(data)
+    def register_task(self, task_context):
+        context_json_payload = json.dumps(task_context)
         self.messenger_channel.basic_publish(
             exchange='',
             routing_key=settings.RABBITMQ_OUTCOME_QUERY,
-            body=data_json_payload,
+            body=context_json_payload,
             properties=pika.BasicProperties(
                 delivery_mode=2,
             )
@@ -54,9 +55,9 @@ class TaskManager(metaclass=TaskManagerMeta):
     def handle_received_task_message(self, ch, method, properties, body):
         data = json.loads(body)
 
-        if not (requested_task_name := data.get('task')):
+        if not (requested_task_name := data.get('task_name')):
             # TODO: id of message & logging it (broker deletes messages - save wrong messages for debug?)
-            self.logger.error(f"Message received from orchestrator doesn't contain the task name. Message discarded.")
+            self.logger.error('Message received from orchestrator doesnt contain "task_name". Message discarded.')
             ch.basic_reject(delivery_tag=method.delivery_tag)
             return
 
@@ -67,7 +68,8 @@ class TaskManager(metaclass=TaskManagerMeta):
             return
 
         try:
-            handle_received_task(self, ch, method, properties, data)
+            task_params = data.get('params', {})
+            handle_received_task(self, ch, method, properties, task_params)
 
         except TypeError:
             error_msg = f'The parameters passed to the task "{requested_task_name}" do not match its signature'
@@ -93,7 +95,7 @@ class TaskManager(metaclass=TaskManagerMeta):
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
     @trace_logs
-    def receive_task__request_apps_list(self, ch, method, properties, data):
+    def receive_task__request_apps_list(self, ch, method, properties, task_params):
         async def _task():
             self.logger.info('Requesting apps list..')
 
@@ -110,15 +112,15 @@ class TaskManager(metaclass=TaskManagerMeta):
         result = self.execute_task(_task)
         orchestrator_task_context = {
             # TODO: task names as settings consts
-            "task_name": "update_app_list",
+            "task_name": "actualize_app_list",
             "params": {
                 "app_ids": result
             }
         }
-        self.register_response_task(orchestrator_task_context)
+        self.register_task(orchestrator_task_context)
 
     @trace_logs
-    def receive_task__request_app_data(self, ch, method, properties, data):
+    def receive_task__request_app_data(self, ch, method, properties, task_params):
         async def _task():
             self.logger.info(f'Requesting app data. AppID: {app_id} CountryCode: {country_code}')
 
@@ -153,38 +155,35 @@ class TaskManager(metaclass=TaskManagerMeta):
                 raise HandledException(error_message)
 
             self.logger.info(f'App data successfully pushed to backend. AppID: {app_id} CountryCode: {country_code}')
-            return {
-                "updated_app_ids": [app_id],
-                "country_code": country_code
-            }
 
         # main body ###########################
 
-        if not (app_id := data.get('app_id')):
-            error_msg = 'Task "request_app_data": No app_id specified in app data request'
+        if not (app_id := task_params.get('app_id')):
+            error_msg = 'Task "request_app_data": No app_id specified in task context'
             self.logger.error(error_msg)
             raise HandledException(error_msg)
 
-        if not (country_code := data.get('country_code', settings.DEFAULT_COUNTRY_CODE)):
+        if not (country_code := task_params.get('country_code', settings.DEFAULT_COUNTRY_CODE)):
             self.logger.warning(
                 f'Task "request_app_data": No country specified for app_id {app_id} data request. '
                 f'Default country selected - {country_code}'
             )
 
-        result = self.execute_task(_task)()
+        self.execute_task(_task)()
         orchestrator_task_context = {
             "task_name": "update_apps_status",
             "params": {
-                "app_ids": result
+                "app_ids": [app_id],
+                "country_code": country_code
             }
         }
-        self.register_response_task(orchestrator_task_context)
+        self.register_task(orchestrator_task_context)
 
     @trace_logs
-    def receive_task__request_batch_of_apps_data(self, ch, method, properties, data):
+    def receive_task__bulk_request_for_apps_data(self, ch, method, properties, task_params):
         async def _task():
             self.logger.info(
-                f'Requesting batch of apps data.'
+                f'Bulk request for apps data.'
                 f' Batch of app IDs size: {len(batch_of_app_ids)} CountryCode: {country_code}'
             )
 
@@ -230,25 +229,22 @@ class TaskManager(metaclass=TaskManagerMeta):
                         task.cancel()
 
                     self.logger.error(
-                        f"Receive an error while requesting batch of apps data."
+                        f"Receive an error while bulk requesting for apps data."
                         f" Batch of app IDs size: {len(batch_of_app_ids)} CountryCode: {country_code}"
                         f" Error: {exc}"
                         f" Amount of canceled tasks (except task with error): {len(pending)}"
                     )
 
-                return {
-                    "updated_app_ids": list(successfully_updated_app_ids),
-                    "country_code": country_code
-                }
+                return list(successfully_updated_app_ids)
 
         # main body ###########################
 
-        if not (batch_of_app_ids := data.get('app_id', [])):
-            self.logger.warning('Task "request_app_data": Receive empty batch of app ids')
+        if not (batch_of_app_ids := task_params.get('app_ids', [])):
+            self.logger.warning('Task "bulk_request_for_apps_data": Receive empty batch of app ids')
 
-        if not (country_code := data.get('country_code', settings.DEFAULT_COUNTRY_CODE)):
+        if not (country_code := task_params.get('country_code', settings.DEFAULT_COUNTRY_CODE)):
             self.logger.warning(
-                f'Task "request_app_data": No country specified for batch of apps data request. '
+                f'Task "bulk_request_for_apps_data": No country specified for batch of apps data request. '
                 f'Default country selected - {country_code}'
             )
 
@@ -256,7 +252,8 @@ class TaskManager(metaclass=TaskManagerMeta):
         orchestrator_task_context = {
             "task_name": "update_apps_status",
             "params": {
-                "app_ids": result
+                "app_ids": result,
+                "country_code": country_code
             }
         }
-        self.register_response_task(orchestrator_task_context)
+        self.register_task(orchestrator_task_context)
