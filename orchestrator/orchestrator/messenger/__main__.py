@@ -5,7 +5,7 @@ import time
 from orchestrator.config import settings
 from orchestrator.logger import get_logger
 from orchestrator.db import Session
-from .connections import orchestrator_channel
+from .connections import worker_channel
 from .tasks import TaskManager
 from .utils import HandledException
 
@@ -30,31 +30,30 @@ def send_messages():
     try:
         while True:
             task_manager.request_all_apps()
-            time.sleep(300)
+            time.sleep(120)
             task_manager.bulk_request_for_apps_data()
             time.sleep(300)
 
     except Exception as error:
         logger.critical(f'Unhandled error: {error}')
-        worker_connection.close()
-
+        return
 
 def consume_messages():
     logger = get_logger(settings, name='messenger')
 
     task_manager = TaskManager(
-        messenger_channel=orchestrator_channel,
+        messenger_channel=worker_channel,
         session_maker=Session
     )
 
     def handle_income_task(ch, method, properties, body):
         task_manager.handle_received_task_message(ch, method, properties, body)
 
-    orchestrator_channel.basic_consume(queue=settings.RABBITMQ_INCOME_QUERY, on_message_callback=handle_income_task)
+    worker_channel.basic_consume(queue=settings.RABBITMQ_INCOME_QUERY, on_message_callback=handle_income_task)
 
     while True:
         try:
-            orchestrator_channel.start_consuming()
+            worker_channel.start_consuming()
 
         except HandledException:
             continue

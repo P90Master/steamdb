@@ -14,7 +14,7 @@ class BackendAPIClientException(APIClientException):
 
 class BackendAPI(abc.ABC):
     class BackendAPIUrl(Enum):
-        app_data_package = f'{settings.BACKEND_HOST}/api/{settings.BACKEND_API_VERSION}/games/package/'
+        app_data_package = f'{settings.BACKEND_URL}/api/{settings.BACKEND_API_VERSION}/games/package/'
 
     @classmethod
     @property

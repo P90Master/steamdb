@@ -1,4 +1,4 @@
-from worker.setting import settings
+from worker.config import settings
 from worker.logger import get_logger
 from worker.api import backend_api_client, steam_api_client
 

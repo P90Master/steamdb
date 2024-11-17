@@ -20,6 +20,7 @@ class CountryCodeCurrencyMapping(Enum):
 class OrchestratorSettings(BaseSettings):
     DEFAULT_COUNTRY_CODE: str = CountryCodes.united_states.value
     BATCH_SIZE_OF_UPDATING_STEAM_APPS: int = 100
+    DB_INPUT_BATCH_SIZE: int = 1000
     DEBUG: bool = True
 
     DB_HOST: str = 'orchestrator-db'

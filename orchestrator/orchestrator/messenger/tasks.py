@@ -10,7 +10,8 @@ from sqlalchemy import select, insert, update
 from orchestrator.config import settings
 from orchestrator.logger import get_logger
 from orchestrator.db import App
-from .utils import trace_logs, HandledException
+
+from .utils import trace_logs, HandledException, batch_slicer
 
 
 class TaskManagerMeta(type):
@@ -77,17 +78,14 @@ class TaskManager(metaclass=TaskManagerMeta):
             error_msg = f'The parameters passed to the task "{requested_task_name}" do not match its signature'
             self.logger.error(error_msg)
             ch.basic_reject(delivery_tag=method.delivery_tag)
-            raise HandledException(error_msg)
 
         except HandledException as handled_exception:
             ch.basic_reject(delivery_tag=method.delivery_tag)
-            raise handled_exception
 
         except Exception as unhandled_error:
             error_msg = f'Task "{requested_task_name}" execution failed with error: {unhandled_error}'
             self.logger.error(error_msg)
             ch.basic_reject(delivery_tag=method.delivery_tag)
-            raise HandledException(error_msg)
 
         else:
             self.logger.debug(
@@ -117,9 +115,8 @@ class TaskManager(metaclass=TaskManagerMeta):
         self.register_task(task_context)
 
     @trace_logs
-    def bulk_request_for_apps_data(self, ch, method, properties, task_params):
+    def bulk_request_for_apps_data(self, batch_size=settings.BATCH_SIZE_OF_UPDATING_STEAM_APPS):
         def get_apps_need_updating() -> Iterable[int]:
-            batch_size = task_params.get('batch_size', settings.BATCH_SIZE_OF_UPDATING_STEAM_APPS)
             query = (
                 select(App.id)
                 .order_by(App.last_updated)
@@ -144,7 +141,7 @@ class TaskManager(metaclass=TaskManagerMeta):
 
 
     @trace_logs
-    def receive__actualize_app_list(self, ch, method, properties, task_params):
+    def receive_task__actualize_app_list(self, ch, method, properties, task_params):
         if not (app_ids := task_params.get('app_ids')):
             error_msg = 'Task "actualize_app_list": No app_ids provided in task context'
             self.logger.error(error_msg)
@@ -152,18 +149,22 @@ class TaskManager(metaclass=TaskManagerMeta):
 
         actual_ids = set(app_ids)
 
-        existing_ids_query = select(App.c.id)
+        existing_ids_query = select(App.id)
+        # TODO: Async insert
         with self.db_session_maker() as session:
             existing_ids = {row[0] for row in session.execute(existing_ids_query)}
-            new_ids = actual_ids - existing_ids
+            new_ids = list(actual_ids - existing_ids)
+            self.logger.debug(f'Task "actualize_app_list": received {len(new_ids)} new apps')
 
-            if new_ids:
-                query = insert(App).values([{"id": app_id} for app_id in new_ids])
+            for batch_of_ids in batch_slicer(new_ids, settings.DB_INPUT_BATCH_SIZE):
+                query = insert(App).values(
+                    [{"id": app_id, "last_updated": datetime.fromtimestamp(0)} for app_id in batch_of_ids]
+                )
                 session.execute(query)
                 session.commit()
 
     @trace_logs
-    def receive__update_apps_status(self, ch, method, properties, task_params):
+    def receive_task__update_apps_status(self, ch, method, properties, task_params):
         if not (app_ids := task_params.get('app_ids')):
             error_msg = 'Task "update_apps_status": No app_ids provided in task context'
             self.logger.error(error_msg)
@@ -175,12 +176,14 @@ class TaskManager(metaclass=TaskManagerMeta):
             self.logger.error(error_msg)
             raise HandledException(error_msg)
 
+        # TODO: Async update
         with self.db_session_maker() as session:
-            query = (
-                update(App)
-                .where(App.id.in_(app_ids))
-                .values(last_updated=datetime.now())
-            )
+            for batch_of_ids in batch_slicer(app_ids, settings.DB_INPUT_BATCH_SIZE):
+                query = (
+                    update(App)
+                    .where(App.id.in_(batch_of_ids))
+                    .values(last_updated=datetime.now())
+                )
 
-            session.execute(query)
-            session.commit()
+                session.execute(query)
+                session.commit()

@@ -6,6 +6,11 @@ class HandledException(Exception):
     pass
 
 
+def batch_slicer(collection, batch_size=1000):
+    for i in range(0, len(collection), batch_size):
+        yield collection[i:i + batch_size]
+
+
 def trace_logs(decorated):
     @functools.wraps(decorated)
     def sync_wrapper(self, *args, **kwargs):

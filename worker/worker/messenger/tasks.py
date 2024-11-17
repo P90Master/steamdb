@@ -75,17 +75,14 @@ class TaskManager(metaclass=TaskManagerMeta):
             error_msg = f'The parameters passed to the task "{requested_task_name}" do not match its signature'
             self.logger.error(error_msg)
             ch.basic_reject(delivery_tag=method.delivery_tag)
-            raise HandledException(error_msg)
 
         except HandledException as handled_exception:
             ch.basic_reject(delivery_tag=method.delivery_tag)
-            raise handled_exception
 
         except Exception as unhandled_error:
             error_msg = f'Task "{requested_task_name}" execution failed with error: {unhandled_error}'
             self.logger.error(error_msg)
             ch.basic_reject(delivery_tag=method.delivery_tag)
-            raise HandledException(error_msg)
 
         else:
             self.logger.debug(
@@ -96,7 +93,7 @@ class TaskManager(metaclass=TaskManagerMeta):
 
     @trace_logs
     def receive_task__request_apps_list(self, ch, method, properties, task_params):
-        async def _task():
+        async def _task(*args, **kwargs):
             self.logger.info('Requesting apps list..')
 
             apps_collection, is_success = await execute_celery_task(celery_task=get_app_list_celery_task)
@@ -109,7 +106,7 @@ class TaskManager(metaclass=TaskManagerMeta):
             self.logger.info('Apps list successfully requested')
             return app_list
 
-        result = self.execute_task(_task)
+        result = self.execute_task(_task)()
         orchestrator_task_context = {
             # TODO: task names as settings consts
             "task_name": "actualize_app_list",
@@ -121,7 +118,7 @@ class TaskManager(metaclass=TaskManagerMeta):
 
     @trace_logs
     def receive_task__request_app_data(self, ch, method, properties, task_params):
-        async def _task():
+        async def _task(*args, **kwargs):
             self.logger.info(f'Requesting app data. AppID: {app_id} CountryCode: {country_code}')
 
             request_params = {'app_id': app_id, 'country_code': country_code}
@@ -181,7 +178,7 @@ class TaskManager(metaclass=TaskManagerMeta):
 
     @trace_logs
     def receive_task__bulk_request_for_apps_data(self, ch, method, properties, task_params):
-        async def _task():
+        async def _task(*args, **kwargs):
             self.logger.info(
                 f'Bulk request for apps data.'
                 f' Batch of app IDs size: {len(batch_of_app_ids)} CountryCode: {country_code}'

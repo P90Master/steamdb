@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import logging
 
 from worker.config import CountryCodeCurrencyMapping
 
@@ -114,14 +115,14 @@ class BackendPackageDataBuilder:
         if app_data.get('is_free'):
             return 0
 
-        return float(app_data.get('price_overview', {}).get('final')) / 100.0
+        return float(app_data.get('price_overview', {}).get('final', 0)) / 100.0
 
     @staticmethod
     def _extract_app_discount(app_data, *args, **kwargs):
         if app_data.get('is_free'):
             return 0
 
-        return app_data.get('price_overview', {}).get('discount_percent')
+        return app_data.get('price_overview', {}).get('discount_percent', 0)
 
     @staticmethod
     def _extract_response_country_code(app_data, app_request_params, *args, **kwargs):

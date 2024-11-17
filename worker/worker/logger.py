@@ -27,3 +27,5 @@ def get_logger(settings, name=__name__):
         file_handler = RotatingFileHandler(filename=log_file_path, mode='w', maxBytes=10*1024*1024, backupCount=5)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
+
+    return logger
