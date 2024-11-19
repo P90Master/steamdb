@@ -43,7 +43,7 @@ def handle_response_exceptions(component=__name__, method=None, url=None)-> Call
 
             except DEFAULT_HANDLEABLE_ASYNC_EXCEPTIONS as http_error:
                 logger.error(
-                    f"Received {http_error.status} from {component}."
+                    f"Received handleable exception from {component}."
                     f" URL: {url or 'Not specified'}"
                     f" Method: {method or 'Not specified'}"
                     f" Error: {http_error}"
@@ -65,7 +65,7 @@ def handle_response_exceptions(component=__name__, method=None, url=None)-> Call
 
             except DEFAULT_HANDLEABLE_EXCEPTIONS as http_error:
                 logger.error(
-                    f"Received {http_error.status} from {component}."
+                    f"Received handleable exception from {component}."
                     f" URL: {url or 'Not specified'}"
                     f" Method: {method or 'Not specified'}"
                     f" Error: {http_error}"
