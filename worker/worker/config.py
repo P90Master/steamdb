@@ -52,6 +52,9 @@ class WorkerSettings(BaseSettings):
     RABBITMQ_PASSWORD: str = 'password'
     RABBITMQ_INCOME_QUERY: str = 'tasks_for_workers'
     RABBITMQ_OUTCOME_QUERY: str = 'tasks_for_orchestrator'
+    RABBITMQ_CONNECTION_ATTEMPTS: int = 3
+    RABBITMQ_CONNECTION_RETRY_DELAY: int = 3
+    RABBITMQ_HEARTBEAT: int = 600
 
     class Config:
         env_file = '.env'

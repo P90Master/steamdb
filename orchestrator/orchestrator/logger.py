@@ -4,12 +4,17 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 
+formatter = logging.Formatter("%(filename)s %(asctime)s %(levelname)s %(message)s")
+stdout_handler = logging.StreamHandler(stream=sys.stdout)
+stdout_handler.setFormatter(formatter)
+
+
 def get_logger(settings, name=__name__):
     logger = logging.getLogger(name)
 
-    formatter = logging.Formatter("%(filename)s %(asctime)s %(levelname)s %(message)s")
-    stdout_handler = logging.StreamHandler(stream=sys.stdout)
-    stdout_handler.setFormatter(formatter)
+    if logger.handlers:
+        return logger
+
     logger.addHandler(stdout_handler)
 
     if settings.DEBUG:

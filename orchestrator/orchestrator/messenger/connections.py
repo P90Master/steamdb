@@ -6,6 +6,9 @@ from orchestrator.config import settings
 worker_connection = pika.BlockingConnection(
     pika.ConnectionParameters(
         host=settings.RABBITMQ_HOST,
+        connection_attempts=settings.RABBITMQ_CONNECTION_ATTEMPTS,
+        retry_delay=settings.RABBITMQ_CONNECTION_RETRY_DELAY,
+        heartbeat=settings.RABBITMQ_HEARTBEAT,
         port=settings.RABBITMQ_PORT,
         credentials=pika.PlainCredentials(
             username=settings.RABBITMQ_USER,

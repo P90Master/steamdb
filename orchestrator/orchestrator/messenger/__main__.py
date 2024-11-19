@@ -1,6 +1,8 @@
-import pika
 import threading
 import time
+
+import pika
+from pika.exceptions import AMQPConnectionError
 
 from orchestrator.config import settings
 from orchestrator.logger import get_logger
@@ -27,16 +29,19 @@ def send_messages():
 
     task_manager = TaskManager(channel, Session)
 
-    try:
-        while True:
+    while True:
+        try:
             task_manager.request_all_apps()
             time.sleep(120)
             task_manager.bulk_request_for_apps_data()
             time.sleep(300)
 
-    except Exception as error:
-        logger.critical(f'Unhandled error: {error}')
-        return
+        except AMQPConnectionError:
+            time.sleep(1)
+
+        except Exception as error:
+            logger.critical(f'Unhandled error: {error}')
+            return
 
 def consume_messages():
     logger = get_logger(settings, name='messenger')
@@ -47,6 +52,7 @@ def consume_messages():
     )
 
     def handle_income_task(ch, method, properties, body):
+        threading.Thread(target=task_manager.handle_received_task_message, args=(ch, method, properties, body)).start()
         task_manager.handle_received_task_message(ch, method, properties, body)
 
     worker_channel.basic_consume(queue=settings.RABBITMQ_INCOME_QUERY, on_message_callback=handle_income_task)
@@ -57,6 +63,9 @@ def consume_messages():
 
         except HandledException:
             continue
+
+        except AMQPConnectionError:
+            time.sleep(1)
 
         except Exception as unhandled_critical_error:
             logger.critical(f"An unhandled exception received. Exception: {unhandled_critical_error}")

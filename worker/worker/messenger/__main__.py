@@ -1,7 +1,10 @@
+import time
+
+from pika.exceptions import AMQPConnectionError
+
 from worker.config import settings
 from worker.logger import get_logger
 from worker.api import backend_api_client, steam_api_client
-
 from .connections import orchestrator_channel
 from .tasks import TaskManager
 from .utils import HandledException
@@ -27,6 +30,9 @@ def main():
 
         except HandledException:
             continue
+
+        except AMQPConnectionError:
+            time.sleep(1)
 
         except Exception as unhandled_critical_error:
             logger.critical(f"An unhandled exception received. Exception: {unhandled_critical_error}")
