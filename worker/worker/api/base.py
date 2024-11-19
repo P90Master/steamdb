@@ -22,6 +22,7 @@ DEFAULT_EXCEPTIONS_FOR_RETRY = (
     aiohttp.client_exceptions.ClientResponseError,
     aiohttp.client_exceptions.ClientConnectionError,
     requests.exceptions.RequestException,
+    requests.exceptions.HTTPError,
     APIClientException,
 )
 

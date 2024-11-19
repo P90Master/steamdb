@@ -1,4 +1,6 @@
+import asyncio
 import time
+import threading
 
 from pika.exceptions import AMQPConnectionError
 
@@ -24,6 +26,19 @@ def main():
 
     orchestrator_channel.basic_consume(queue=settings.RABBITMQ_INCOME_QUERY, on_message_callback=handle_income_task)
 
+    def async_heartbeats():
+        def process_events():
+            while True:
+                orchestrator_channel.connection.process_data_events()
+                time.sleep(5)
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(process_events())
+
+    heartbeat_thread = threading.Thread(target=async_heartbeats)
+    heartbeat_thread.start()
+
     while True:
         try:
             orchestrator_channel.start_consuming()
@@ -37,7 +52,9 @@ def main():
 
         except Exception as unhandled_critical_error:
             logger.critical(f"An unhandled exception received. Exception: {unhandled_critical_error}")
-            return
+            break
+
+    heartbeat_thread.join()
 
 
 if __name__ == '__main__':

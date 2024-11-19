@@ -32,10 +32,10 @@ def send_messages():
     def process_events():
         while True:
             worker_connection.process_data_events()
-            time.sleep(1)
+            time.sleep(5)
 
-    event_thread = threading.Thread(target=process_events, daemon=True)
-    event_thread.start()
+    heartbeat_thread = threading.Thread(target=process_events, daemon=True)
+    heartbeat_thread.start()
 
     while True:
         try:
