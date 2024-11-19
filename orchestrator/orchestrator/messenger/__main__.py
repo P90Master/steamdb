@@ -29,6 +29,14 @@ def send_messages():
 
     task_manager = TaskManager(channel, Session)
 
+    def process_events():
+        while True:
+            worker_connection.process_data_events()
+            time.sleep(1)
+
+    event_thread = threading.Thread(target=process_events, daemon=True)
+    event_thread.start()
+
     while True:
         try:
             task_manager.request_all_apps()
@@ -52,7 +60,7 @@ def consume_messages():
     )
 
     def handle_income_task(ch, method, properties, body):
-        threading.Thread(target=task_manager.handle_received_task_message, args=(ch, method, properties, body)).start()
+        # threading.Thread(target=task_manager.handle_received_task_message, args=(ch, method, properties, body)).start()
         task_manager.handle_received_task_message(ch, method, properties, body)
 
     worker_channel.basic_consume(queue=settings.RABBITMQ_INCOME_QUERY, on_message_callback=handle_income_task)
@@ -60,9 +68,10 @@ def consume_messages():
     while True:
         try:
             worker_channel.start_consuming()
+            worker_channel.connection.process_data_events()
 
         except HandledException:
-            continue
+            pass
 
         except AMQPConnectionError:
             time.sleep(1)

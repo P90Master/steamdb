@@ -27,6 +27,7 @@ def main():
     while True:
         try:
             orchestrator_channel.start_consuming()
+            orchestrator_channel.connection.process_data_events()
 
         except HandledException:
             continue

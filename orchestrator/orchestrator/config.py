@@ -41,7 +41,7 @@ class OrchestratorSettings(BaseSettings):
     RABBITMQ_OUTCOME_QUERY: str = 'tasks_for_workers'
     RABBITMQ_CONNECTION_ATTEMPTS: int = 3
     RABBITMQ_CONNECTION_RETRY_DELAY: int = 3
-    RABBITMQ_HEARTBEAT: int = 600
+    RABBITMQ_HEARTBEAT: int = 60
 
     LOGGER_WRITE_IN_FILE: bool = True
     LOGGER_LOG_FILES_PATH: str = 'logs'
