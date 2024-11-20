@@ -94,16 +94,16 @@ class TaskManager(metaclass=TaskManagerMeta):
     @trace_logs
     def receive_task__request_apps_list(self, ch, method, properties, task_params):
         async def _task(*args, **kwargs):
-            self.logger.info('Requesting apps list..')
+            self.logger.info('Task "request_apps_list": Start execution.')
 
             apps_collection, is_success = await execute_celery_task(celery_task=get_app_list_celery_task)
             if not is_success:
-                error_msg = "Requesting apps list failed"
+                error_msg = 'Task "request_apps_list": Requesting apps list failed. Execution interrupted.'
                 self.logger.error(error_msg)
                 raise HandledException(error_msg)
 
             app_list = [app.get('appid') for app in apps_collection.get('applist', {}).get('apps', {})]
-            self.logger.info('Apps list successfully requested')
+            self.logger.info('Task "request_apps_list": Apps list successfully requested. Completion of execution.')
             return app_list
 
         result = self.execute_task(_task)()
@@ -119,7 +119,8 @@ class TaskManager(metaclass=TaskManagerMeta):
     @trace_logs
     def receive_task__request_app_data(self, ch, method, properties, task_params):
         async def _task(*args, **kwargs):
-            self.logger.info(f'Requesting app data. AppID: {app_id} CountryCode: {country_code}')
+            self.logger.info(f'Task request_app_data": Start execution.')
+            self.logger.debug(f'Task "request_app_data": Requested AppID: {app_id} CountryCode: {country_code}')
 
             request_params = {'app_id': app_id, 'country_code': country_code}
             app_data_response, is_success = await execute_celery_task(
@@ -127,11 +128,14 @@ class TaskManager(metaclass=TaskManagerMeta):
                 **request_params
             )
             if not is_success:
-                error_message = f"Requesting app data from steam failed. AppID: {app_id} CountryCode: {country_code}"
+                error_message = f'Task "request_app_data": Requesting app data from steam failed. Execution interrupted'
                 self.logger.error(error_message)
+                self.logger.debug(
+                    f'Task "request_app_data": Failed request for AppID: {app_id} CountryCode: {country_code}'
+                )
                 raise HandledException(error_message)
 
-            self.logger.info(f'App data requested successfully. AppID: {app_id} CountryCode: {country_code}')
+            self.logger.info(f'Task "request_app_data": App data requested successfully. Completion of execution.')
             backend_package = convert_steam_app_data_response_to_backend_app_data_package(
                 request_params,
                 app_data_response,
@@ -151,7 +155,7 @@ class TaskManager(metaclass=TaskManagerMeta):
                 self.logger.error(error_message)
                 raise HandledException(error_message)
 
-            self.logger.info(f'App data successfully pushed to backend. AppID: {app_id} CountryCode: {country_code}')
+            self.logger.info(f'Task "request_app_data": App data successfully requested. Completion of execution.')
 
         # main body ###########################
 
@@ -180,7 +184,7 @@ class TaskManager(metaclass=TaskManagerMeta):
     def receive_task__bulk_request_for_apps_data(self, ch, method, properties, task_params):
         async def _task(*args, **kwargs):
             self.logger.info(
-                f'Bulk request for apps data.'
+                f'Task "bulk_request_for_apps_data":'
                 f' Batch of app IDs size: {len(batch_of_app_ids)} CountryCode: {country_code}'
             )
 
@@ -206,7 +210,10 @@ class TaskManager(metaclass=TaskManagerMeta):
                         **request_params
                     )
                     if not is_success:
-                        self.logger.error(f"Requesting app data failed. AppID: {app_id} CountryCode: {country_code}")
+                        self.logger.error(
+                            f'Task "bulk_request_for_apps_data":'
+                            f' Requesting app {app_id} with countryCode: {country_code} failed'
+                        )
                         continue
 
                     backend_package = convert_steam_app_data_response_to_backend_app_data_package(
@@ -226,7 +233,7 @@ class TaskManager(metaclass=TaskManagerMeta):
                         task.cancel()
 
                     self.logger.error(
-                        f"Receive an error while bulk requesting for apps data."
+                        f'Task "bulk_request_for_apps_data": Receive an error.'
                         f" Batch of app IDs size: {len(batch_of_app_ids)} CountryCode: {country_code}"
                         f" Error: {exc}"
                         f" Amount of canceled tasks (except task with error): {len(pending)}"
