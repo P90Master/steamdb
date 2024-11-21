@@ -4,21 +4,74 @@ from pydantic_settings import BaseSettings
 
 
 class CountryCodes(Enum):
-    united_states = 'US'
-    russia = 'RU'
+    united_states = "US"
+    china = "CN"
+    japan = "JP"
+    germany = "DE"
+    india = "IN"
+    united_kingdom = "GB"
+    france = "FR"
+    italy = "IT"
+    canada = "CA"
+    south_korea = "KR"
+    russia = "RU"
+    brazil = "BR"
+    australia = "AU"
+    spain = "ES"
+    mexico = "MX"
+    indonesia = "ID"
+    netherlands = "NL"
+    switzerland = "CH"
+    sweden = "SE"
+    belgium = "BE"
+    austria = "AT"
+    argentina = "AR"
+    norway = "NO"
+    czech_republic = "CZ"
 
 
-class CountryCodeCurrencyMapping(Enum):
+class CountryCodeSteamCurrencyMapping(Enum):
     @classmethod
     def get(cls, code):
         return cls[code].value if code in cls.__members__ else None
 
-    US = 'USD'
-    RU = 'RUB'
+    US = "USD"
+    CN = "CNY"
+    JP = "JPY"
+    DE = "EUR"
+    IN = "INR"
+    GB = "GBP"
+    FR = "EUR"
+    IT = "EUR"
+    CA = "CAD"
+    KR = "KRW"
+    RU = "RUB"
+    BR = "BRL"
+    AU = "AUD"
+    ES = "EUR"
+    MX = "MXN"
+    ID = "IDR"
+    NL = "EUR"
+    CH = "CHF"
+    SE = "SEK"
+    BE = "EUR"
+    AT = "EUR"
+    AR = "USD"
+    NO = "NOK"
+    CZ = "CZK"
 
 
 class WorkerSettings(BaseSettings):
     DEFAULT_COUNTRY_CODE: str = CountryCodes.united_states.value
+    DEFAULT_COUNTRY_BUNDLE: list[str] = [
+        CountryCodes.united_states.value,
+        CountryCodes.united_kingdom.value,
+        CountryCodes.china.value,
+        CountryCodes.russia.value,
+        CountryCodes.germany.value,
+        CountryCodes.japan.value,
+        CountryCodes.brazil.value,
+    ]
     DEBUG: bool = True
 
     BACKEND_PROTOCOL: str = "http"

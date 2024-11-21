@@ -39,7 +39,7 @@ def send_messages():
 
     while True:
         try:
-            task_manager.request_all_apps()
+            task_manager.request_apps_list()
             time.sleep(120)
             task_manager.bulk_request_for_apps_data()
             time.sleep(300)

@@ -185,7 +185,7 @@ class TaskManager(metaclass=TaskManagerMeta):
         async def _task(*args, **kwargs):
             self.logger.info(
                 f'Task "bulk_request_for_apps_data":'
-                f' Batch of app IDs size: {len(batch_of_app_ids)} CountryCode: {country_code}'
+                f' Batch of app IDs size: {len(batch_of_app_ids)} country codes: {country_codes}'
             )
 
             backend_request_tasks = set()
@@ -200,31 +200,32 @@ class TaskManager(metaclass=TaskManagerMeta):
 
             async with self.backend_api_client as backend_session:
                 for app_id in batch_of_app_ids:
-                    request_params = {
-                        'app_id': app_id,
-                        'country_code': country_code
-                    }
+                    for country_code in country_codes:
+                        request_params = {
+                            'app_id': app_id,
+                            'country_code': country_code
+                        }
 
-                    app_data_response, is_success = await execute_celery_task(
-                        celery_task=get_app_detail_celery_task,
-                        **request_params
-                    )
-                    if not is_success:
-                        self.logger.error(
-                            f'Task "bulk_request_for_apps_data":'
-                            f' Requesting app {app_id} with countryCode: {country_code} failed'
+                        app_data_response, is_success = await execute_celery_task(
+                            celery_task=get_app_detail_celery_task,
+                            **request_params
                         )
-                        continue
+                        if not is_success:
+                            self.logger.error(
+                                f'Task "bulk_request_for_apps_data":'
+                                f' Requesting app "{app_id}" with country code "{country_code}" failed'
+                            )
+                            continue
 
-                    backend_package = convert_steam_app_data_response_to_backend_app_data_package(
-                        request_params,
-                        app_data_response,
-                        self.logger
-                    )
+                        backend_package = convert_steam_app_data_response_to_backend_app_data_package(
+                            request_params,
+                            app_data_response,
+                            self.logger
+                        )
 
-                    task = asyncio.create_task(backend_session.post_app_data_package(backend_package))
-                    backend_request_tasks.add(task)
-                    task.add_done_callback(save_successfully_updated_app_id_and_clear_task_pool)
+                        task = asyncio.create_task(backend_session.post_app_data_package(backend_package))
+                        backend_request_tasks.add(task)
+                        task.add_done_callback(save_successfully_updated_app_id_and_clear_task_pool)
 
                 done, pending = await asyncio.wait(backend_request_tasks, return_when=asyncio.FIRST_EXCEPTION)
 
@@ -234,7 +235,7 @@ class TaskManager(metaclass=TaskManagerMeta):
 
                     self.logger.error(
                         f'Task "bulk_request_for_apps_data": Receive an error.'
-                        f" Batch of app IDs size: {len(batch_of_app_ids)} CountryCode: {country_code}"
+                        f" Batch of app IDs size: {len(batch_of_app_ids)} Country Codes: {country_codes}"
                         f" Error: {exc}"
                         f" Amount of canceled tasks (except task with error): {len(pending)}"
                     )
@@ -246,18 +247,17 @@ class TaskManager(metaclass=TaskManagerMeta):
         if not (batch_of_app_ids := task_params.get('app_ids', [])):
             self.logger.warning('Task "bulk_request_for_apps_data": Receive empty batch of app ids')
 
-        if not (country_code := task_params.get('country_code', settings.DEFAULT_COUNTRY_CODE)):
+        if not (country_codes := task_params.get('country_code', settings.DEFAULT_COUNTRY_BUNDLE)):
             self.logger.warning(
                 f'Task "bulk_request_for_apps_data": No country specified for batch of apps data request. '
-                f'Default country selected - {country_code}'
+                f'Default country bundle selected - {country_codes}'
             )
 
         result = self.execute_task(_task)()
         orchestrator_task_context = {
             "task_name": "update_apps_status",
             "params": {
-                "app_ids": result,
-                "country_code": country_code
+                "app_ids": result
             }
         }
         self.register_task(orchestrator_task_context)

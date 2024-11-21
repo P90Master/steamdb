@@ -2,7 +2,7 @@ import asyncio
 import functools
 import logging
 
-from worker.config import CountryCodeCurrencyMapping
+from worker.config import CountryCodeSteamCurrencyMapping
 
 
 class HandledException(Exception):
@@ -132,7 +132,7 @@ class BackendPackageDataBuilder:
     def _extract_response_currency(app_data, app_request_params, *args, **kwargs):
         if app_data.get('is_free'):
             country_code = app_request_params.get('country_code')
-            return CountryCodeCurrencyMapping.get(country_code)
+            return CountryCodeSteamCurrencyMapping.get(country_code)
 
         return app_data.get('price_overview', {}).get('currency')
 

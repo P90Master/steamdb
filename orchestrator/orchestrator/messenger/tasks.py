@@ -95,7 +95,7 @@ class TaskManager(metaclass=TaskManagerMeta):
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
     @trace_logs
-    def request_all_apps(self):
+    def request_apps_list(self):
         # TODO: Worker tasks registry
         task_context = {
             "task_name": "request_apps_list",
@@ -115,7 +115,11 @@ class TaskManager(metaclass=TaskManagerMeta):
         self.register_task(task_context)
 
     @trace_logs
-    def bulk_request_for_apps_data(self, batch_size=settings.BATCH_SIZE_OF_UPDATING_STEAM_APPS):
+    def bulk_request_for_apps_data(
+            self,
+            batch_size=settings.BATCH_SIZE_OF_UPDATING_STEAM_APPS,
+            country_codes=settings.DEFAULT_COUNTRY_BUNDLE
+    ):
         def get_apps_need_updating() -> Iterable[int]:
             query = (
                 select(App.id)
@@ -127,14 +131,12 @@ class TaskManager(metaclass=TaskManagerMeta):
                 return list(session.execute(query).scalars().all())
 
         app_ids = get_apps_need_updating()
-        # FIXME: Temporary mock until id & country composite key implemented
-        country_code = settings.DEFAULT_COUNTRY_CODE
 
         task_context = {
             "task_name": "bulk_request_for_apps_data",
             "params": {
                 "app_ids": app_ids,
-                "country_code": country_code
+                "country_codes": country_codes
             }
         }
         self.register_task(task_context)
@@ -167,12 +169,6 @@ class TaskManager(metaclass=TaskManagerMeta):
     def receive_task__update_apps_status(self, ch, method, properties, task_params):
         if not (app_ids := task_params.get('app_ids')):
             error_msg = 'Task "update_apps_status": No app_ids provided in task context'
-            self.logger.error(error_msg)
-            raise HandledException(error_msg)
-
-        # FIXME: Temporary useless until id & country composite key implemented
-        if not (country_code := task_params.get('country_code')):
-            error_msg = 'Task "update_apps_status": No country_code provided in task context'
             self.logger.error(error_msg)
             raise HandledException(error_msg)
 
