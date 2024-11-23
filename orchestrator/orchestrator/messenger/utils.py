@@ -16,7 +16,7 @@ def trace_logs(decorated):
     def sync_wrapper(self, *args, **kwargs):
         task_name = decorated.__name__
         if not hasattr(self, 'logger'):
-            raise AttributeError(f"Decorated method {task_name} doesn't have logger")
+            raise AttributeError(f"Class of decorated method {task_name} doesn't have logger")
 
         self.logger.info(f"Received command to execute task: {task_name}")
 

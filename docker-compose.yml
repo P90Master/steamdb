@@ -62,6 +62,22 @@ services:
 
   # TODO: backend-db service
 
+  orchestrator-worker-broker:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - ./orchestrator-worker-broker.conf:/etc/rabbitmq/rabbitmq.conf
+    expose:
+      - "5672"
+      - "15672"
+    networks:
+      - orchestrator
+      - worker
+
+  # orchestrator #####################################################
+
   orchestrator:
     build:
       context: /orchestrator
@@ -88,7 +104,14 @@ services:
       RABBITMQ_OUTCOME_QUERY: ${ORCHESTRATOR_RABBITMQ_OUTCOME_QUERY}
       RABBITMQ_CONNECTION_ATTEMPTS: ${RABBITMQ_CONNECTION_ATTEMPTS}
       RABBITMQ_CONNECTION_RETRY_DELAY: ${RABBITMQ_CONNECTION_RETRY_DELAY}
-      RABBITMQ_HEARTBEAT: ${RABBITMQ_HEARTBEAT}
+      RABBITMQ_HEARTBEATS_MAX_DELAY: ${RABBITMQ_HEARTBEATS_MAX_DELAY}
+
+      CELERY_NAME: ${ORCHESTRATOR_CELERY_NAME}
+      CELERY_BROKER_HOST: ${ORCHESTRATOR_CELERY_BROKER_HOST}
+      CELERY_BROKER_PORT: ${ORCHESTRATOR_CELERY_BROKER_PORT}
+      CELERY_BROKER_PROTOCOL: ${ORCHESTRATOR_CELERY_BROKER_PROTOCOL}
+      CELERY_SCHEDULE_REQUEST_ACTUAL_APP_LIST: ${ORCHESTRATOR_CELERY_SCHEDULE_REQUEST_ACTUAL_APP_LIST}
+      CELERY_SCHEDULE_REQUEST_FOR_APPS_DATA: ${ORCHESTRATOR_CELERY_SCHEDULE_REQUEST_FOR_APPS_DATA}
 
       DB_USER: ${ORCHESTRATOR_DB_USER}
       DB_PASSWORD: ${ORCHESTRATOR_DB_PASSWORD}
@@ -102,6 +125,7 @@ services:
     depends_on:
       - orchestrator-worker-broker
       - orchestrator-db
+      - orchestrator-task-broker
     networks:
       - common
       - orchestrator
@@ -120,20 +144,14 @@ services:
     networks:
       - orchestrator
 
-  # TODO: orchestrator-celery-beat
-
-  orchestrator-worker-broker:
-    image: rabbitmq:3-management
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
-      RABBITMQ_CONSUMER_TIMEOUT: ${RABBITMQ_CONSUMER_TIMEOUT:-60000}
+  orchestrator-task-broker:
+    image: redis:latest
     expose:
-      - "5672"
-      - "15672"
+      - "6379"
     networks:
       - orchestrator
-      - worker
+
+  # worker #########################################################
 
   worker:
     build:
@@ -160,7 +178,7 @@ services:
       RABBITMQ_OUTCOME_QUERY: ${WORKER_RABBITMQ_OUTCOME_QUERY}
       RABBITMQ_CONNECTION_ATTEMPTS: ${RABBITMQ_CONNECTION_ATTEMPTS}
       RABBITMQ_CONNECTION_RETRY_DELAY: ${RABBITMQ_CONNECTION_RETRY_DELAY}
-      RABBITMQ_HEARTBEAT: ${RABBITMQ_HEARTBEAT}
+      RABBITMQ_HEARTBEATS_MAX_DELAY: ${RABBITMQ_HEARTBEATS_MAX_DELAY}
 
       CELERY_NAME: ${WORKER_CELERY_NAME}
       CELERY_BROKER_HOST: ${WORKER_CELERY_BROKER_HOST}

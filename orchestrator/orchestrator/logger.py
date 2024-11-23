@@ -10,10 +10,14 @@ stdout_handler.setFormatter(formatter)
 
 
 def get_logger(settings, name=__name__):
+    print(f'logger name: {name}')
     logger = logging.getLogger(name)
 
-    if logger.handlers:
+    if logger.hasHandlers():
+        logging.critical(f'YES {logger}')
         return logger
+
+    logging.critical(f'NO {logger}')
 
     logger.addHandler(stdout_handler)
 

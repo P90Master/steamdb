@@ -28,10 +28,10 @@ class TaskManagerMeta(type):
 
 
 class TaskManager(metaclass=TaskManagerMeta):
-    def __init__(self, messenger_channel, session_maker):
+    def __init__(self, messenger_channel, session_maker, logger=None):
         self.messenger_channel = messenger_channel
         self.db_session_maker = session_maker
-        self.logger = get_logger(settings)
+        self.logger = logger if logger else get_logger(settings, __name__)
 
     def execute_task(self, task):
         @functools.wraps(task)

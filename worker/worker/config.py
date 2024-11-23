@@ -107,7 +107,7 @@ class WorkerSettings(BaseSettings):
     RABBITMQ_OUTCOME_QUERY: str = 'tasks_for_orchestrator'
     RABBITMQ_CONNECTION_ATTEMPTS: int = 3
     RABBITMQ_CONNECTION_RETRY_DELAY: int = 3
-    RABBITMQ_HEARTBEAT: int = 60
+    RABBITMQ_HEARTBEATS_MAX_DELAY: int = 60
 
     class Config:
         env_file = '.env'

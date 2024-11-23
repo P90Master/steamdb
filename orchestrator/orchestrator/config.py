@@ -63,6 +63,7 @@ class CountryCodeSteamCurrencyMapping(Enum):
 
 class OrchestratorSettings(BaseSettings):
     DEFAULT_COUNTRY_CODE: str = CountryCodes.united_states.value
+    # TODO: validate: filter duplicates
     DEFAULT_COUNTRY_BUNDLE: list[str] = [
         CountryCodes.united_states.value,
         CountryCodes.united_kingdom.value,
@@ -94,7 +95,20 @@ class OrchestratorSettings(BaseSettings):
     RABBITMQ_OUTCOME_QUERY: str = 'tasks_for_workers'
     RABBITMQ_CONNECTION_ATTEMPTS: int = 3
     RABBITMQ_CONNECTION_RETRY_DELAY: int = 3
-    RABBITMQ_HEARTBEAT: int = 60
+    RABBITMQ_HEARTBEATS_MAX_DELAY: int = 120
+    RABBITMQ_HEARTBEATS_TIMEOUT: int = 30
+
+    CELERY_NAME: str = "scheduled_tasks"
+    CELERY_BROKER_HOST: str = "orchestrator-task-broker"
+    CELERY_BROKER_PORT: int = 6379
+    CELERY_BROKER_PROTOCOL: str = "redis"
+    # TODO: advanced URL builder (like validator func)
+    CELERY_BROKER_URL: str = f"{CELERY_BROKER_PROTOCOL}://{CELERY_BROKER_HOST}:{CELERY_BROKER_PORT}/0"
+    CELERY_BROKER: str = CELERY_BROKER_URL
+    CELERY_BACKEND: str = CELERY_BROKER_URL
+
+    CELERY_SCHEDULE_REQUEST_ACTUAL_APP_LIST: str = '*/5 * * * *'
+    CELERY_SCHEDULE_REQUEST_FOR_APPS_DATA: str = '*/5 * * * *'
 
     LOGGER_WRITE_IN_FILE: bool = True
     LOGGER_LOG_FILES_PATH: str = 'logs'

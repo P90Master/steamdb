@@ -1,7 +1,6 @@
 import threading
 import time
 
-import pika
 from pika.exceptions import AMQPConnectionError
 
 from orchestrator.config import settings
@@ -12,51 +11,13 @@ from .tasks import TaskManager
 from .utils import HandledException
 
 
-# FIXME: mock celery scheduled tasks & commands from API
-def send_messages():
-    logger = get_logger(settings, name='messenger')
-
-    worker_connection = pika.BlockingConnection(
-        pika.ConnectionParameters(
-            host=settings.RABBITMQ_HOST,
-            port=settings.RABBITMQ_PORT,
-            credentials=pika.PlainCredentials(settings.RABBITMQ_USER, settings.RABBITMQ_PASSWORD)
-        )
-    )
-    channel = worker_connection.channel()
-    channel.queue_declare(queue=settings.RABBITMQ_OUTCOME_QUERY, durable=True)
-    channel.basic_qos(prefetch_count=1)
-
-    task_manager = TaskManager(channel, Session)
-
-    def process_events():
-        while True:
-            worker_connection.process_data_events()
-            time.sleep(5)
-
-    heartbeat_thread = threading.Thread(target=process_events, daemon=True)
-    heartbeat_thread.start()
-
-    while True:
-        try:
-            task_manager.request_apps_list()
-            time.sleep(120)
-            task_manager.bulk_request_for_apps_data()
-            time.sleep(300)
-
-        except AMQPConnectionError:
-            time.sleep(1)
-
-        except Exception as error:
-            logger.critical(f'Unhandled error: {error}')
-            return
-
 def consume_messages():
-    logger = get_logger(settings, name='messenger')
+    logger = get_logger(settings, name='consume_task')
 
     task_manager = TaskManager(
         messenger_channel=worker_channel,
-        session_maker=Session
+        session_maker=Session,
+        logger=logger
     )
 
     def handle_income_task(ch, method, properties, body):
@@ -65,10 +26,19 @@ def consume_messages():
 
     worker_channel.basic_consume(queue=settings.RABBITMQ_INCOME_QUERY, on_message_callback=handle_income_task)
 
+    # TODO: run task in new thread & control it amount (semaphore?)
+    def process_events(stop_consuming_messages_):
+        while not stop_consuming_messages_.is_set():
+            worker_channel.connection.process_data_events()
+            time.sleep(settings.RABBITMQ_HEARTBEATS_TIMEOUT)
+
+    stop_consuming_messages = threading.Event()
+    heartbeat_thread = threading.Thread(target=process_events, args=(stop_consuming_messages,))
+    heartbeat_thread.start()
+
     while True:
         try:
             worker_channel.start_consuming()
-            worker_channel.connection.process_data_events()
 
         except HandledException:
             pass
@@ -78,19 +48,10 @@ def consume_messages():
 
         except Exception as unhandled_critical_error:
             logger.critical(f"An unhandled exception received. Exception: {unhandled_critical_error}")
-            return
+            break
 
-
-def main():
-    send_thread = threading.Thread(target=send_messages, name='sending tasks')
-    consume_thread = threading.Thread(target=consume_messages, name='handling worker response')
-
-    consume_thread.start()
-    send_thread.start()
-
-    send_thread.join()
-    consume_thread.join()
+    stop_consuming_messages.set()
 
 
 if __name__ == '__main__':
-    main()
+    consume_messages()
