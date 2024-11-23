@@ -11,6 +11,7 @@ stdout_handler.setFormatter(formatter)
 
 def get_logger(settings, name=__name__):
     logger = logging.getLogger(name)
+    logger.propagate = False
 
     if logger.handlers:
         return logger

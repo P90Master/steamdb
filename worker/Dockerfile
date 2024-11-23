@@ -1,14 +1,19 @@
 FROM python:3.9
 
-# TODO: special user for worker
+WORKDIR /worker
+COPY . .
+
+COPY requirements.txt .
 
 # TODO: apt update
-COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
     rm requirements.txt
 
-COPY ./worker /worker
+RUN useradd -m worker
+RUN chown -R worker:worker /worker
+USER worker
 
-# TODO: entrypoint.sh
-ENTRYPOINT celery --app worker.celery.celery_app worker --loglevel=error & python -m worker.messenger
+RUN chmod +x entrypoint.sh
+
+ENTRYPOINT ./entrypoint.sh

@@ -1,12 +1,15 @@
 import asyncio
 import functools
 import json
+from logging import Logger
 
 import pika
+from pika.adapters.blocking_connection import BlockingChannel
 
 from worker.config import settings
 from worker.logger import get_logger
 from worker.celery import execute_celery_task, get_app_list_celery_task, get_app_detail_celery_task
+from worker.api import SteamAPIClient, AsyncBackendAPIClient
 from .utils import convert_steam_app_data_response_to_backend_app_data_package, trace_logs, HandledException
 
 
@@ -24,11 +27,17 @@ class TaskManagerMeta(type):
 
 
 class TaskManager(metaclass=TaskManagerMeta):
-    def __init__(self, messenger_channel, backend_api_client, steam_api_client):
+    def __init__(
+        self,
+        messenger_channel: BlockingChannel,
+        backend_api_client: AsyncBackendAPIClient,
+        steam_api_client: SteamAPIClient,
+        logger: Logger = None
+    ):
         self.messenger_channel = messenger_channel
         self.backend_api_client = backend_api_client
         self.steam_api_client = steam_api_client
-        self.logger = get_logger(settings)
+        self.logger = logger if logger else get_logger(settings, __name__)
 
     def execute_task(self, task):
         @functools.wraps(task)
