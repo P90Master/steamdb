@@ -1,5 +1,9 @@
 import asyncio
 import functools
+from concurrent.futures import ThreadPoolExecutor
+
+
+THREAD_POOL_EXECUTOR_MAX_WORKERS = 5
 
 
 class HandledException(Exception):
@@ -9,6 +13,23 @@ class HandledException(Exception):
 def batch_slicer(collection, batch_size=1000):
     for i in range(0, len(collection), batch_size):
         yield collection[i:i + batch_size]
+
+
+# FIXME: Dead code
+def async_execute(coro):
+    def run_coro(coroutine, *args, **kwargs):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(coroutine(*args, **kwargs))
+        loop.close()
+        return result
+
+    @functools.wraps(coro)
+    def wrapper(*args, **kwargs):
+        with ThreadPoolExecutor(max_workers=THREAD_POOL_EXECUTOR_MAX_WORKERS) as executor:
+            return executor.submit(run_coro, coro, *args, **kwargs).result()
+
+    return wrapper
 
 
 def trace_logs(decorated):

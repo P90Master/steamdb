@@ -4,7 +4,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 
-formatter = logging.Formatter("%(filename)s %(asctime)s %(levelname)s %(message)s")
+formatter = logging.Formatter("[%(name)s %(asctime)s %(levelname)s] %(message)s")
 stdout_handler = logging.StreamHandler(stream=sys.stdout)
 stdout_handler.setFormatter(formatter)
 

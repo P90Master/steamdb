@@ -10,7 +10,8 @@ app = Celery(
     task_serializer='json',
     accept_content=['json'],
     result_serializer='json',
-    timezone='UTC',
+    timezone='Europe/Moscow',
     enable_utc=True,
+    worker_hijack_root_logger=False,
 )
 app.autodiscover_tasks(['orchestrator.celery.tasks'])

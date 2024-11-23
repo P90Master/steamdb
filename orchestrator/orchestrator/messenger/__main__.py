@@ -12,7 +12,7 @@ from .utils import HandledException
 
 
 def consume_messages():
-    logger = get_logger(settings, name='consume_task')
+    logger = get_logger(settings, name='worker_task')
 
     task_manager = TaskManager(
         messenger_channel=worker_channel,
@@ -29,8 +29,8 @@ def consume_messages():
     # TODO: run task in new thread & control it amount (semaphore?)
     def process_events(stop_consuming_messages_):
         while not stop_consuming_messages_.is_set():
-            worker_channel.connection.process_data_events()
             time.sleep(settings.RABBITMQ_HEARTBEATS_TIMEOUT)
+            worker_channel.connection.process_data_events()
 
     stop_consuming_messages = threading.Event()
     heartbeat_thread = threading.Thread(target=process_events, args=(stop_consuming_messages,))
@@ -41,16 +41,17 @@ def consume_messages():
             worker_channel.start_consuming()
 
         except HandledException:
-            pass
+            worker_channel.stop_consuming()
 
         except AMQPConnectionError:
+            worker_channel.stop_consuming()
             time.sleep(1)
 
         except Exception as unhandled_critical_error:
             logger.critical(f"An unhandled exception received. Exception: {unhandled_critical_error}")
+            stop_consuming_messages.set()
+            worker_channel.stop_consuming()
             break
-
-    stop_consuming_messages.set()
 
 
 if __name__ == '__main__':

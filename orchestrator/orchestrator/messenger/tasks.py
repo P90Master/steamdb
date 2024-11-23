@@ -3,9 +3,12 @@ import functools
 import json
 from collections.abc import Iterable
 from datetime import datetime
+from logging import Logger
 
 import pika
+from pika.adapters.blocking_connection import BlockingChannel
 from sqlalchemy import select, insert, update
+from  sqlalchemy.orm import Session
 
 from orchestrator.config import settings
 from orchestrator.logger import get_logger
@@ -28,7 +31,7 @@ class TaskManagerMeta(type):
 
 
 class TaskManager(metaclass=TaskManagerMeta):
-    def __init__(self, messenger_channel, session_maker, logger=None):
+    def __init__(self, messenger_channel: BlockingChannel, session_maker: Session, logger: Logger = None):
         self.messenger_channel = messenger_channel
         self.db_session_maker = session_maker
         self.logger = logger if logger else get_logger(settings, __name__)
@@ -79,7 +82,7 @@ class TaskManager(metaclass=TaskManagerMeta):
             self.logger.error(error_msg)
             ch.basic_reject(delivery_tag=method.delivery_tag)
 
-        except HandledException as handled_exception:
+        except HandledException:
             ch.basic_reject(delivery_tag=method.delivery_tag)
 
         except Exception as unhandled_error:
@@ -88,10 +91,6 @@ class TaskManager(metaclass=TaskManagerMeta):
             ch.basic_reject(delivery_tag=method.delivery_tag)
 
         else:
-            self.logger.debug(
-                f'Message containing the request to perform task "{requested_task_name}"'
-                f' was processed successfully.'
-            )
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
     @trace_logs
@@ -150,9 +149,8 @@ class TaskManager(metaclass=TaskManagerMeta):
             raise HandledException(error_msg)
 
         actual_ids = set(app_ids)
-
         existing_ids_query = select(App.id)
-        # TODO: Async insert
+
         with self.db_session_maker() as session:
             existing_ids = {row[0] for row in session.execute(existing_ids_query)}
             new_ids = list(actual_ids - existing_ids)
@@ -168,11 +166,10 @@ class TaskManager(metaclass=TaskManagerMeta):
     @trace_logs
     def receive_task__update_apps_status(self, ch, method, properties, task_params):
         if not (app_ids := task_params.get('app_ids')):
-            error_msg = 'Task "update_apps_status": No app_ids provided in task context'
+            error_msg = 'Task "actualize_app_list": No app_ids provided in task context'
             self.logger.error(error_msg)
             raise HandledException(error_msg)
 
-        # TODO: Async update
         with self.db_session_maker() as session:
             for batch_of_ids in batch_slicer(app_ids, settings.DB_INPUT_BATCH_SIZE):
                 query = (
@@ -183,3 +180,5 @@ class TaskManager(metaclass=TaskManagerMeta):
 
                 session.execute(query)
                 session.commit()
+
+        self.logger.debug(f'Task "actualize_app_list": updated status of {len(app_ids)} apps')

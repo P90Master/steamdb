@@ -85,10 +85,6 @@ class TaskManager(metaclass=TaskManagerMeta):
             ch.basic_reject(delivery_tag=method.delivery_tag)
 
         else:
-            self.logger.debug(
-                f'Message containing the request to perform task "{requested_task_name}"'
-                f' was processed successfully.'
-            )
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
     @trace_logs

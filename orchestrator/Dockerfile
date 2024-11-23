@@ -1,13 +1,18 @@
 FROM python:3.9
 
-COPY ./orchestrator /orchestrator
+WORKDIR /orchestrator
+COPY . .
 
 COPY requirements.txt .
+
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
     rm requirements.txt
 
-ENTRYPOINT alembic -c /orchestrator/db/alembic.ini upgrade head && \
-           python -m orchestrator.messenger & \
-           celery -A orchestrator.celery.beat_app beat --loglevel=error & \
-           celery -A orchestrator.celery.worker_app worker --loglevel=error
+RUN useradd -m orchestrator
+RUN chown -R orchestrator:orchestrator /orchestrator
+USER orchestrator
+
+RUN chmod +x entrypoint.sh
+
+ENTRYPOINT ./entrypoint.sh
