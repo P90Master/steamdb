@@ -175,6 +175,7 @@ class TaskManager(metaclass=TaskManagerMeta):
                 query = (
                     update(App)
                     .where(App.id.in_(batch_of_ids))
+                    # we have time gap between datetime.now() and actual updating time on backend
                     .values(last_updated=datetime.now())
                 )
 

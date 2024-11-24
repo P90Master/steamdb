@@ -10,7 +10,6 @@ class App(Base):
     __tablename__ = 'apps'
 
     id = Column(Integer, primary_key=True)
-    # TODO: Each country has its own date and status (id & country composite key?)
     last_updated = Column(DateTime, default=datetime.now)
     # TODO: Lock for parallel updating
     # is_updating = Column(Boolean, default=False)

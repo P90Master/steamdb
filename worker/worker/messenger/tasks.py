@@ -148,7 +148,6 @@ class TaskManager(metaclass=TaskManagerMeta):
             )
             try:
                 await self.backend_api_client.post_app_data_package(backend_package)
-                # TODO: Record update time - when request was sent to backend (instead of time.now() on orchestrator)
 
             except Exception as unhandled_error:
                 error_message = (

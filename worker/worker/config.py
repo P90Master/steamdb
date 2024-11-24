@@ -1,5 +1,6 @@
 from enum import Enum
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -95,7 +96,6 @@ class WorkerSettings(BaseSettings):
     CELERY_BROKER_URL: str = f"{CELERY_BROKER_PROTOCOL}://{CELERY_BROKER_HOST}:{CELERY_BROKER_PORT}/0"
     CELERY_BROKER: str = CELERY_BROKER_URL
     CELERY_BACKEND: str = CELERY_BROKER_URL
-    # TODO: validate by max 40/m - steam api limit
     CELERY_TASK_COMMON_RATE_LIMIT: str = '39/m'
     CELERY_TASK_TIME_LIMIT: int = 20
 
@@ -109,6 +109,22 @@ class WorkerSettings(BaseSettings):
     RABBITMQ_CONNECTION_RETRY_DELAY: int = 3
     RABBITMQ_HEARTBEATS_TIMEOUT: int = 30
     RABBITMQ_HEARTBEATS_MAX_DELAY: int = 120
+
+    @field_validator("CELERY_TASK_COMMON_RATE_LIMIT")
+    @classmethod
+    def validate_employee_id(cls, v: str, info):
+        if not v.endswith('/m'):
+            raise ValueError("Rate limit must end with '/m'")
+
+        try:
+            limit = int(v[:-2])
+        except ValueError:
+            raise ValueError("Rate limit must be a valid integer followed by '/m'")
+
+        if limit < 1 or limit > 40:
+            raise ValueError("Rate limit must be between '1/m' and '40/m'")
+
+        return v
 
     class Config:
         env_file = '.env'
