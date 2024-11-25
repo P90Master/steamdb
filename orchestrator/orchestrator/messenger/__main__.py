@@ -12,7 +12,7 @@ from .utils import HandledException
 
 
 def consume_messages():
-    logger = get_logger(settings, name='worker_task')
+    logger = get_logger(settings, name='messenger_received_task')
 
     task_manager = TaskManager(
         messenger_channel=worker_channel,

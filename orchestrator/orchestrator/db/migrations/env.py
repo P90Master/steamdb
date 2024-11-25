@@ -8,6 +8,7 @@ from alembic import context
 from dotenv import load_dotenv
 
 from orchestrator.db.models import Base
+from orchestrator.db.models import App
 
 
 load_dotenv()

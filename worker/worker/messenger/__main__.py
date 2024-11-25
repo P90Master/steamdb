@@ -52,7 +52,9 @@ def main():
 
         except AMQPConnectionError:
             orchestrator_channel.stop_consuming()
-            time.sleep(1)
+            common_logger.error("Lost connection with Orchestrator<->Workers message broker. ")
+            # TODO: try to reconnect (up to N times, then raise critical error)
+            time.sleep(2)
 
         except Exception as unhandled_critical_error:
             common_logger.critical(f"An unhandled exception received. Exception: {unhandled_critical_error}")

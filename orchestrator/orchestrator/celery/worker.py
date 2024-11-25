@@ -14,4 +14,4 @@ app = Celery(
     enable_utc=True,
     worker_hijack_root_logger=False,
 )
-app.autodiscover_tasks(['orchestrator.celery.tasks'])
+app.autodiscover_tasks(['orchestrator.celery.tasks.scheduled', 'orchestrator.celery.tasks.api'])

@@ -35,6 +35,6 @@ async def execute_celery_task(celery_task, *task_args, **task_kwargs):
 
 async def wait_celery_task_result(celery_task):
     while not celery_task.ready():
-        await asyncio.sleep(0.25)
+        await asyncio.sleep(0.1)
 
     return celery_task.result

@@ -114,7 +114,18 @@ class TaskManager(metaclass=TaskManagerMeta):
         self.register_task(task_context)
 
     @trace_logs
-    def bulk_request_for_apps_data(
+    def bulk_request_for_apps_data(self, app_ids: list[str], country_codes: list[str]):
+        task_context = {
+            "task_name": "bulk_request_for_apps_data",
+            "params": {
+                "app_ids": app_ids,
+                "country_codes": country_codes
+            }
+        }
+        self.register_task(task_context)
+
+    @trace_logs
+    def bulk_request_for_most_outdated_apps_data(
             self,
             batch_size=settings.BATCH_SIZE_OF_UPDATING_STEAM_APPS,
             country_codes=settings.DEFAULT_COUNTRY_BUNDLE

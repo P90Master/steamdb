@@ -17,11 +17,11 @@ app = Celery(
 
 app.conf.beat_schedule = {
     'actualize_app_list': {
-        'task': 'orchestrator.celery.tasks.request_apps_list',
+        'task': 'orchestrator.celery.tasks.scheduled.request_apps_list',
         'schedule': crontab(settings.CELERY_SCHEDULE_REQUEST_ACTUAL_APP_LIST),
     },
-    'bulk_request_for_apps_data': {
-        'task': 'orchestrator.celery.tasks.bulk_request_for_apps_data',
+    'bulk_request_for_most_outdated_apps_data': {
+        'task': 'orchestrator.celery.tasks.scheduled.bulk_request_for_most_outdated_apps_data',
         'schedule': crontab(settings.CELERY_SCHEDULE_REQUEST_FOR_APPS_DATA),
     }
 }
