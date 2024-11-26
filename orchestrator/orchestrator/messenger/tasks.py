@@ -8,7 +8,7 @@ from logging import Logger
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
 from sqlalchemy import select, insert, update
-from  sqlalchemy.orm import Session
+from sqlalchemy.orm import Session
 
 from orchestrator.config import settings
 from orchestrator.logger import get_logger
@@ -30,6 +30,7 @@ class TaskManagerMeta(type):
         return new_class
 
 
+# TODO: Separate task logic from messenger utility
 class TaskManager(metaclass=TaskManagerMeta):
     def __init__(
             self, messenger_channel: BlockingChannel,
