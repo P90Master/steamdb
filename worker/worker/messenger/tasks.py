@@ -2,6 +2,7 @@ import asyncio
 import functools
 import json
 from logging import Logger
+from typing import Any
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
@@ -27,6 +28,8 @@ class TaskManagerMeta(type):
 
 
 class TaskManager(metaclass=TaskManagerMeta):
+    DEFAULT_MESSAGE_PRIORITY: int = 1
+
     def __init__(
         self,
         messenger_channel: BlockingChannel,
@@ -50,14 +53,18 @@ class TaskManager(metaclass=TaskManagerMeta):
     def get_receive_task_handler(self, task_name):
         return self._receive_tasks.get(task_name)
 
-    def register_task(self, task_context):
+    def register_task(self, task_context: dict[str, Any], message_priority: int = 1):
         context_json_payload = json.dumps(task_context)
+        if message_priority is None:
+            message_priority = self.DEFAULT_MESSAGE_PRIORITY
+
         self.messenger_channel.basic_publish(
             exchange='',
             routing_key=settings.RABBITMQ_OUTCOME_QUERY,
             body=context_json_payload,
             properties=pika.BasicProperties(
                 delivery_mode=2,
+                priority=message_priority
             )
         )
 
@@ -119,7 +126,7 @@ class TaskManager(metaclass=TaskManagerMeta):
                 "app_ids": result
             }
         }
-        self.register_task(orchestrator_task_context)
+        self.register_task(orchestrator_task_context, message_priority=properties.priority)
 
     @trace_logs
     def receive_task__request_app_data(self, ch, method, properties, task_params):
@@ -182,7 +189,7 @@ class TaskManager(metaclass=TaskManagerMeta):
                 "country_code": country_code
             }
         }
-        self.register_task(orchestrator_task_context)
+        self.register_task(orchestrator_task_context, message_priority=properties.priority)
 
     @trace_logs
     def receive_task__bulk_request_for_apps_data(self, ch, method, properties, task_params):
@@ -264,4 +271,4 @@ class TaskManager(metaclass=TaskManagerMeta):
                 "app_ids": result
             }
         }
-        self.register_task(orchestrator_task_context)
+        self.register_task(orchestrator_task_context, message_priority=properties.priority)

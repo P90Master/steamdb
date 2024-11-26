@@ -8,7 +8,12 @@ from orchestrator.celery.worker import app
 
 logger = get_logger(settings, name='api_received_task')
 # TODO: channel with high priority
-task_manager = TaskManager(messenger_channel=worker_channel, session_maker=Session, logger=logger)
+task_manager = TaskManager(
+    messenger_channel=worker_channel,
+    session_maker=Session,
+    logger=logger,
+    send_msg_with_priority=3,
+)
 
 
 @app.task(time_limit=settings.CELERY_TASK_TIME_LIMIT)

@@ -18,6 +18,7 @@ worker_connection = pika.BlockingConnection(
 )
 
 worker_channel = worker_connection.channel()
-worker_channel.queue_declare(queue=settings.RABBITMQ_INCOME_QUERY, durable=True)
-worker_channel.queue_declare(queue=settings.RABBITMQ_OUTCOME_QUERY, durable=True)
+args = {'x-max-priority': 5}
+worker_channel.queue_declare(queue=settings.RABBITMQ_INCOME_QUERY, durable=True, arguments=args)
+worker_channel.queue_declare(queue=settings.RABBITMQ_OUTCOME_QUERY, durable=True, arguments=args)
 worker_channel.basic_qos(prefetch_count=1)

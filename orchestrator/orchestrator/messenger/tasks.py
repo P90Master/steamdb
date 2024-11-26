@@ -31,10 +31,16 @@ class TaskManagerMeta(type):
 
 
 class TaskManager(metaclass=TaskManagerMeta):
-    def __init__(self, messenger_channel: BlockingChannel, session_maker: Session, logger: Logger = None):
+    def __init__(
+            self, messenger_channel: BlockingChannel,
+            session_maker: Session,
+            logger: Logger = None,
+            send_msg_with_priority: int = 1
+    ):
         self.messenger_channel = messenger_channel
         self.db_session_maker = session_maker
         self.logger = logger if logger else get_logger(settings, __name__)
+        self.send_msg_with_priority = send_msg_with_priority
 
     def execute_task(self, task):
         @functools.wraps(task)
@@ -55,6 +61,7 @@ class TaskManager(metaclass=TaskManagerMeta):
             body=context_json_payload,
             properties=pika.BasicProperties(
                 delivery_mode=2,
+                priority=self.send_msg_with_priority
             )
         )
 
