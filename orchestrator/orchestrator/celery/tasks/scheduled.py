@@ -6,7 +6,7 @@ from orchestrator.db import Session
 from orchestrator.celery.worker import app
 
 
-logger = get_logger(settings, name='scheduled_task')
+logger = get_logger(settings, name='messenger.scheduled_task')
 task_manager = TaskManager(
     messenger_channel=worker_channel,
     session_maker=Session,

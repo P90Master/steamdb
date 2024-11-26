@@ -6,8 +6,7 @@ from orchestrator.db import Session
 from orchestrator.celery.worker import app
 
 
-logger = get_logger(settings, name='api_received_task')
-# TODO: channel with high priority
+logger = get_logger(settings, name='messenger.received_api_task')
 task_manager = TaskManager(
     messenger_channel=worker_channel,
     session_maker=Session,

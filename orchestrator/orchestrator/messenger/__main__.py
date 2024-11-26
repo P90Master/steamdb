@@ -9,15 +9,16 @@ from orchestrator.db import Session
 from .connections import worker_channel
 from .tasks import TaskManager
 from .utils import HandledException
+from .logger import base_logger
 
 
 def consume_messages():
-    logger = get_logger(settings, name='messenger_received_task')
+    consuming_messages_logger = get_logger(settings, name='messenger.received_worker_task')
 
     task_manager = TaskManager(
         messenger_channel=worker_channel,
         session_maker=Session,
-        logger=logger
+        logger=consuming_messages_logger
     )
 
     def handle_income_task(ch, method, properties, body):
@@ -48,7 +49,7 @@ def consume_messages():
             time.sleep(1)
 
         except Exception as unhandled_critical_error:
-            logger.critical(f"An unhandled exception received. Exception: {unhandled_critical_error}")
+            base_logger.critical(f"An unhandled exception received. Exception: {unhandled_critical_error}")
             stop_consuming_messages.set()
             worker_channel.stop_consuming()
             break
