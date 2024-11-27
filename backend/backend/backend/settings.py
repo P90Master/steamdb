@@ -92,6 +92,12 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# API REST
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 10,
+}
+
 # Internationalization
 LANGUAGE_CODE = 'ru-RU'
 TIME_ZONE = 'Europe/Moscow'

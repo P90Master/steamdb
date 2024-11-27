@@ -1,9 +1,16 @@
 from mongoengine import DoesNotExist
 from rest_framework import status
 from rest_framework.views import APIView
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
-from api.serializers import GameSerializer, GameUpdateSerializer, GamePackageDataSerializer, GamePackageSerializer
+from api.serializers import (
+    GameSerializer,
+    GameActualPriceSerializer,
+    GameUpdateSerializer,
+    GamePackageDataSerializer,
+    GamePackageSerializer
+)
 from games.documents import Game
 
 
@@ -17,13 +24,52 @@ class APIViewExtended(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class GamePagination(LimitOffsetPagination):
+    default_limit = 10
+    max_limit = 100
+
+
+class GamePricesPagination(LimitOffsetPagination):
+    default_limit = 10
+    max_limit = 100
+
+
 class GamesView(APIViewExtended):
     serializer_class = GameSerializer
+    pagination_class = GamePagination
+    serializer_last_price_class = GameActualPriceSerializer
+
+    def _convert_game_price_collection_to_last_price_only(self, game):
+        new_price_collection = {}
+
+        for country_code, price_collection in game.prices.items():
+            actual_price = price_collection.get("price_story")[-1]
+            actual_collection = {
+                "is_available": price_collection.get("is_available"),
+                "currency": price_collection.get("currency"),
+                "price": actual_price.get("price"),
+                "discount": actual_price.get("discount"),
+                "last_updated": actual_price.get("timestamp")
+            }
+
+            serializer = self.serializer_last_price_class(data=actual_collection)
+            serializer.is_valid(raise_exception=True)
+            new_price_collection[country_code] = serializer.data
+
+        game.prices = new_price_collection
+        return game
 
     def get(self, request):
         games = Game.objects.all()
-        serializer = self.serializer_class(games, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        paginator = self.pagination_class()
+
+        cut_queryset = paginator.paginate_queryset(games, request)
+        games_with_actual_price_only = [
+            self._convert_game_price_collection_to_last_price_only(game) for game in cut_queryset
+        ]
+        serializer = self.serializer_class(games_with_actual_price_only, many=True)
+
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -33,6 +79,16 @@ class GamesView(APIViewExtended):
 class GameDetailView(APIViewExtended):
     serializer_class = GameSerializer
     serializer_update_class = GameUpdateSerializer
+    pagination_class = GamePricesPagination
+
+    @staticmethod
+    def _cut_prices_by_paginator(game, request, paginator):
+        # TODO: Now pagination is common for all countries at once
+        for country_code, price_collection in game.prices.items():
+            if price_story := price_collection.get('price_story'):
+                price_collection['price_story'] = paginator.paginate_queryset(price_story, request)
+
+        return game
 
     def get(self, request, game_id):
         try:
@@ -40,8 +96,10 @@ class GameDetailView(APIViewExtended):
         except DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
+        paginator = self.pagination_class()
+        game = self._cut_prices_by_paginator(game, request, paginator)
         serializer = self.serializer_class(game)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return paginator.get_paginated_response(serializer.data)
 
     def delete(self, request, game_id):
         try:
