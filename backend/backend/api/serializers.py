@@ -48,11 +48,23 @@ class GameSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=True)
     name = serializers.CharField(required=True)
     prices = serializers.DictField()
+    type = serializers.CharField(required=False)
+    short_description = serializers.CharField(required=False)
+    is_free = serializers.BooleanField(required=False)
+    developers = serializers.ListField(child=serializers.CharField(), required=False)
+    publishers = serializers.ListField(child=serializers.CharField(), required=False)
+    total_recommendations = serializers.IntegerField(required=False)
 
     def create(self, validated_data):
         game_data = {
             "id": validated_data.get('id'),
             "name": validated_data.get('name'),
+            "type": validated_data.get('type'),
+            "short_description": validated_data.get('short_description'),
+            "is_free": validated_data.get('is_free'),
+            "developers": validated_data.get('developers'),
+            "publishers": validated_data.get('publishers'),
+            "total_recommendations": validated_data.get('total_recommendations'),
         }
         game_prices = {}
         for country_code, price_collection in validated_data.get('prices').items():
@@ -74,6 +86,12 @@ class GameSerializer(serializers.Serializer):
 class GameUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(required=False)
     prices = serializers.DictField(required=False)
+    type = serializers.CharField(required=False)
+    short_description = serializers.CharField(required=False)
+    is_free = serializers.BooleanField(required=False)
+    developers = serializers.ListField(child=serializers.CharField(), required=False)
+    publishers = serializers.ListField(child=serializers.CharField(), required=False)
+    total_recommendations = serializers.IntegerField(required=False)
 
     @staticmethod
     def _build_new_price_data(price_collection: dict) -> ReturnDict:
@@ -105,6 +123,12 @@ class GameUpdateSerializer(serializers.Serializer):
 
     def update(self, instance, validated_data):
         instance.name = validated_data.get('name', instance.name)
+        instance.type = validated_data.get('type', instance.type)
+        instance.short_description = validated_data.get('short_description', instance.short_description)
+        instance.is_free = validated_data.get('is_free', instance.is_free)
+        instance.developers = validated_data.get('developers', instance.developers)
+        instance.publishers = validated_data.get('publishers', instance.publishers)
+        instance.total_recommendations = validated_data.get('total_recommendations', instance.total_recommendations)
 
         if not (new_prices := validated_data.get('prices')):
             instance.save()
@@ -132,6 +156,11 @@ class GameUpdateSerializer(serializers.Serializer):
 class GamePackageDataSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=True)
     name = serializers.CharField(required=False)
+    type = serializers.CharField(required=False)
+    short_description = serializers.CharField(required=False)
+    is_free = serializers.BooleanField(required=False)
+    developers = serializers.ListField(child=serializers.CharField(), required=False)
+    publishers = serializers.ListField(child=serializers.CharField(), required=False)
     country_code = serializers.CharField(required=True, max_length=3)
     is_available = serializers.BooleanField(default=True)
     currency = serializers.CharField(required=False, max_length=3, allow_null=True)
@@ -174,6 +203,11 @@ class GamePackageDataSerializer(serializers.Serializer):
         return Game.objects.create(
             id=validated_data.get('id'),
             name=validated_data.get('name'),
+            type=validated_data.get('type'),
+            short_description=validated_data.get('short_description'),
+            is_free=validated_data.get('is_free'),
+            developers=validated_data.get('developers'),
+            publishers=validated_data.get('publishers'),
             prices={
                 validated_data.get('country_code'): new_price_collection
             }
@@ -181,6 +215,11 @@ class GamePackageDataSerializer(serializers.Serializer):
 
     def update(self, instance, validated_data):
         instance.name = validated_data.get('name', instance.name)
+        instance.type = validated_data.get('type', instance.type)
+        instance.short_description = validated_data.get('short_description', instance.short_description)
+        instance.is_free = validated_data.get('is_free', instance.is_free)
+        instance.developers = validated_data.get('developers', instance.developers)
+        instance.publishers = validated_data.get('publishers', instance.publishers)
         country_code = validated_data.get('country_code')
 
         # if price collection for received country is new
