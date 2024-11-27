@@ -97,7 +97,8 @@ class GameUpdateSerializer(serializers.Serializer):
             old_price.price_story.extend(new_price_story_points_instances)
             old_price.price_story.sort(
                 key=lambda price_story: datetime.fromisoformat(price_story.timestamp)
-                    if isinstance(price_story.timestamp, str) else price_story.timestamp
+                    if isinstance(price_story.timestamp, str) else price_story.timestamp,
+                reverse=True
             )
 
         return GamePriceSerializer(instance=old_price).data
@@ -212,7 +213,7 @@ class GamePackageDataSerializer(serializers.Serializer):
                 new_price_story_point.is_valid(raise_exception=True)
                 existed_price_story = country_price_collection.get("price_story")
                 existed_price_story.append(new_price_story_point.data)
-                existed_price_story.sort(key=lambda price_story: price_story.get('timestamp'))
+                existed_price_story.sort(key=lambda price_story: price_story.get('timestamp'), reverse=True)
 
             instance.save()
             return instance
@@ -230,7 +231,7 @@ class GamePackageDataSerializer(serializers.Serializer):
             country_price_collection['is_available'] = False
             existed_price_story = country_price_collection.get("price_story")
             existed_price_story.append(new_price_story_point.data)
-            existed_price_story.sort(key=lambda price_story: price_story.get('timestamp'))
+            existed_price_story.sort(key=lambda price_story: price_story.get('timestamp'), reverse=True)
             instance.save()
 
         # else game was unavailable before and there is no new data in package => do nothing

@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Temp files
+*.pyc
+*~
+
 # Media
 backend/foodgram/media/
 
