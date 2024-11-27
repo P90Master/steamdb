@@ -7,7 +7,17 @@ from api.serializers import GameSerializer, GameUpdateSerializer, GamePackageDat
 from games.documents import Game
 
 
-class GamesView(APIView):
+class APIViewExtended(APIView):
+    @staticmethod
+    def _build_response(serializer):
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GamesView(APIViewExtended):
     serializer_class = GameSerializer
 
     def get(self, request):
@@ -17,25 +27,12 @@ class GamesView(APIView):
 
     def post(self, request, **kwargs):
         serializer = self.serializer_class(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return self._build_response(serializer)
 
 
-class GameDetailView(APIView):
+class GameDetailView(APIViewExtended):
     serializer_class = GameSerializer
     serializer_update_class = GameUpdateSerializer
-
-    # TODO PoC
-    @staticmethod
-    def _get_game(id):
-        try:
-            game = Game.objects.get(id=id)
-        except DoesNotExist:
-            # raise 404
-            pass
 
     def get(self, request, game_id):
         try:
@@ -62,50 +59,43 @@ class GameDetailView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.serializer_update_class(game, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return self._build_response(serializer)
 
 
-class GamesPackageView(APIView):
+class GamesPackageView(APIViewExtended):
     package_serializer_class = GamePackageDataSerializer
     request_serializer_class = GamePackageSerializer
+
+    def _update_or_create_game(self, package_data):
+        try:
+            game = Game.objects.get(id=package_data['id'])
+            return self.package_serializer_class(data=package_data, instance=game)
+
+        except DoesNotExist:
+            return self.package_serializer_class(data=package_data)
 
     def post(self, request):
         request_serializer = self.request_serializer_class(data=request.data)
 
-        if request_serializer.is_valid():
-            package_data = request_serializer.validated_data['data']
+        if not request_serializer.is_valid():
+            return Response(request_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            if request_serializer.validated_data['is_success']:
-                try:
-                    game = Game.objects.get(id=package_data['id'])
-                    package_serializer = self.package_serializer_class(data=package_data, instance=game)
+        package_data = request_serializer.validated_data['data']
 
-                except DoesNotExist:
-                    package_serializer = self.package_serializer_class(data=package_data)
+        if request_serializer.validated_data['is_success']:
+            package_serializer = self._update_or_create_game(package_data)
+            return self._build_response(package_serializer)
 
-                if package_serializer.is_valid():
-                    package_serializer.save()
-                    return Response(request_serializer.validated_data, status=status.HTTP_200_OK)
+        try:
+            game = Game.objects.get(id=package_data['id'])
+            package_data["is_available"] = False
+            package_serializer = self.package_serializer_class(data=package_data, instance=game)
+            return self._build_response(package_serializer)
 
-                return Response(request_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except DoesNotExist:
+            # if task response isn't success and game with given id doesn't exist => may be wrong id - skip
+            # TODO: info log message
+            return Response(request_serializer.validated_data, status=status.HTTP_200_OK)
 
-            try:
-                game = Game.objects.get(id=package_data['id'])
-                package_data["is_available"] = False
-                package_serializer = self.package_serializer_class(data=package_data, instance=game)
-                if package_serializer.is_valid():
-                    package_serializer.save()
-                    return Response(request_serializer.validated_data, status=status.HTTP_200_OK)
-
-                return Response(request_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-            except DoesNotExist:
-                # if task response isn't success and game with given id doesn't exist => may be wrong id - skip
-                # TODO Warning log message
-                return Response(request_serializer.validated_data, status=status.HTTP_200_OK)
-
-        return Response(request_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

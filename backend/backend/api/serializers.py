@@ -4,14 +4,13 @@ from mongoengine import DoesNotExist
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.utils.serializer_helpers import ReturnDict
+from django.utils import timezone
 
 from games.documents import Game, GamePrice, PriceStoryPoint
 
 
-### For manual use
-
 class PriceStoryPointSerializer(serializers.Serializer):
-    timestamp = serializers.DateTimeField(default=datetime.now)
+    timestamp = serializers.DateTimeField(default=timezone.now())
     discount = serializers.IntegerField(min_value=0, max_value=100, default=0)
     price = serializers.DecimalField(required=True, min_value=0.0, decimal_places=2, max_digits=10)
 
@@ -34,6 +33,8 @@ class GamePriceSerializer(serializers.Serializer):
     def create(self, validated_data):
         return GamePrice(**validated_data)
 
+
+# For manual use ###############################################################
 
 class GameSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=True)
@@ -64,42 +65,60 @@ class GameSerializer(serializers.Serializer):
 
 class GameUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(required=False)
-    prices = GamePriceSerializer(many=True, required=False)
+    prices = serializers.DictField(required=False)
+
+    @staticmethod
+    def _build_new_price_data(price_collection: dict) -> ReturnDict:
+        new_price_collection = GamePriceSerializer(data=price_collection)
+        new_price_collection.is_valid(raise_exception=True)
+        return new_price_collection.data
+
+    @staticmethod
+    def _update_existing_price_data(old_price: GamePrice, new_price_collection: dict) -> ReturnDict:
+        old_price.is_available = new_price_collection.get('is_available', old_price.is_available)
+        old_price.currency = new_price_collection.get('currency', old_price.currency)
+
+        if new_price_story_points := new_price_collection.get('price_story'):
+            new_price_story_points_instances = []
+
+            for story_point_collection in new_price_story_points:
+                story_point_serializer = PriceStoryPointSerializer(data=story_point_collection)
+                story_point_serializer.is_valid(raise_exception=True)
+                new_price_story_points_instances.append(story_point_serializer.save())
+
+            old_price.price_story.extend(new_price_story_points_instances)
+            old_price.price_story.sort(
+                key=lambda price_story: datetime.fromisoformat(price_story.timestamp)
+                    if isinstance(price_story.timestamp, str) else price_story.timestamp
+            )
+
+        return GamePriceSerializer(instance=old_price).data
 
     def update(self, instance, validated_data):
-        # FIXME actualize
         instance.name = validated_data.get('name', instance.name)
 
-        if new_prices := validated_data.get('prices'):
-            current_prices = instance.prices
+        if not (new_prices := validated_data.get('prices')):
+            instance.save()
+            return instance
 
-            for country_code, price_collection in new_prices.items():
+        # TODO: extends existing prices with new ones. Need functionality for override existing
+        current_prices: dict = instance.prices
+        for country_code, new_price_collection in new_prices.items():
+            # if country already exists
+            if current_country_prices_collection := current_prices.get(country_code):
+                current_prices[country_code] = self._update_existing_price_data(
+                    GamePrice(**current_country_prices_collection),
+                    new_price_collection
+                )
 
-                # if country already existed
-                if current_country_prices := current_prices.get(country_code):
-                    if new_currency := price_collection.get('currency'):
-                        current_country_prices.currency = new_currency
-
-                    current_country_prices.price_story.extend(price_collection.get('price_story'))
-                    current_country_prices.price_story.sort(key=lambda price_story: price_story.get('timestamp'))
-                else:
-                    new_price_story = price_collection.get('price_story').sort(
-                        key=lambda price_story: price_story.get('timestamp')
-                    )
-                    new_price_collection = GamePriceSerializer(
-                        data={
-                            "currency": validated_data.get('currency'),
-                            "price_story": new_price_story
-                        }
-                    )
-                    new_price_collection.is_valid(raise_exception=True)
-                    current_prices[country_code] = new_price_collection.data
+            else:
+                current_prices[country_code] = self._build_new_price_data(new_price_collection)
 
         instance.save()
         return instance
 
 
-### For autonomous data-collecting tasks
+### For packages from workers ###################################################
 
 class GamePackageDataSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=True)
@@ -109,7 +128,7 @@ class GamePackageDataSerializer(serializers.Serializer):
     currency = serializers.CharField(required=False, max_length=3, allow_null=True)
     discount = serializers.IntegerField(min_value=0, max_value=100, default=0)
     price = serializers.DecimalField(required=False, min_value=0.0, decimal_places=2, max_digits=10)
-    timestamp = serializers.DateTimeField(default=datetime.now)
+    timestamp = serializers.DateTimeField(default=timezone.now())
 
     @staticmethod
     def _build_new_price_collection(validated_data: dict) -> ReturnDict:
@@ -130,6 +149,7 @@ class GamePackageDataSerializer(serializers.Serializer):
                 }
             )
             new_price_collection.is_valid(raise_exception=True)
+
         else:
             new_price_collection = GamePriceSerializer(
                 data={
@@ -137,6 +157,7 @@ class GamePackageDataSerializer(serializers.Serializer):
                 }
             )
             new_price_collection.is_valid(raise_exception=True)
+
         return new_price_collection.data
 
     def create(self, validated_data):
@@ -153,58 +174,58 @@ class GamePackageDataSerializer(serializers.Serializer):
         instance.name = validated_data.get('name', instance.name)
         country_code = validated_data.get('country_code')
 
-        # if price collection for received country already exists
-        if country_price_collection := instance.prices.get(country_code):
-
-            # if game is available and package contains actual data
-            if validated_data.get('is_available'):
-
-                country_price_collection.currency = validated_data.get(
-                    'currency',
-                    country_price_collection.get("currency")
-                )
-
-                # if price changed
-                if float(new_price := validated_data.get('price')) != instance.get_current_price(country_code):
-                    new_price_story_point = PriceStoryPointSerializer(
-                        data={
-                            "timestamp": validated_data.get('timestamp'),
-                            "price": new_price,
-                            "discount": validated_data.get('discount')
-                        }
-                    )
-                    new_price_story_point.is_valid(raise_exception=True)
-                    existed_price_story = country_price_collection.get("price_story")
-                    existed_price_story.append(new_price_story_point.data)
-                    existed_price_story.sort(key=lambda price_story: price_story.get('timestamp'))
-
-            else:
-
-                # if game was available before
-                if country_price_collection.get("is_available"):
-
-                    new_price_story_point = PriceStoryPointSerializer(
-                        data={
-                            "timestamp": validated_data.get('timestamp'),
-                            "price": 0.00,
-                            "discount": 0
-                        }
-                    )
-                    country_price_collection.is_available = False
-                    existed_price_story = country_price_collection.get("price_story")
-                    existed_price_story.append(new_price_story_point.data)
-                    existed_price_story.sort(key=lambda price_story: price_story.get('timestamp'))
-
-                else:
-
-                    # game was unavailable before and there is no new data in package => do nothing
-                    pass
-
-        else:
+        # if price collection for received country is new
+        if not (country_price_collection := instance.prices.get(country_code)):
             new_price_collection = self._build_new_price_collection(validated_data)
             instance.prices[country_code] = new_price_collection
+            instance.save()
+            return instance
 
-        instance.save()
+        # if game is available and package contains potentially useful data
+        if validated_data.get('is_available'):
+
+            country_price_collection['currency'] = validated_data.get(
+                'currency',
+                country_price_collection.get("currency")
+            )
+
+            if not country_price_collection.get("is_available"):
+                country_price_collection['is_available'] = True
+
+            # if price changed
+            if float(new_price := validated_data.get('price')) != instance.get_current_price(country_code):
+                new_price_story_point = PriceStoryPointSerializer(
+                    data={
+                        "timestamp": validated_data.get('timestamp'),
+                        "price": new_price,
+                        "discount": validated_data.get('discount')
+                    }
+                )
+                new_price_story_point.is_valid(raise_exception=True)
+                existed_price_story = country_price_collection.get("price_story")
+                existed_price_story.append(new_price_story_point.data)
+                existed_price_story.sort(key=lambda price_story: price_story.get('timestamp'))
+
+            instance.save()
+            return instance
+
+        # if game was available before
+        if country_price_collection.get("is_available"):
+            new_price_story_point = PriceStoryPointSerializer(
+                data={
+                    "timestamp": validated_data.get('timestamp'),
+                    "price": 0.00,
+                    "discount": 0
+                }
+            )
+            new_price_story_point.is_valid(raise_exception=True)
+            country_price_collection['is_available'] = False
+            existed_price_story = country_price_collection.get("price_story")
+            existed_price_story.append(new_price_story_point.data)
+            existed_price_story.sort(key=lambda price_story: price_story.get('timestamp'))
+            instance.save()
+
+        # else game was unavailable before and there is no new data in package => do nothing
         return instance
 
 

@@ -1,14 +1,14 @@
-from datetime import datetime
 from typing import Union
 
 from mongoengine import Document, EmbeddedDocument, fields
 from django.conf import settings
+from django.utils import timezone
 
 from .connections import connection
 
 
 class PriceStoryPoint(EmbeddedDocument):
-    timestamp = fields.DateTimeField(required=True, default=datetime.now)
+    timestamp = fields.DateTimeField(required=True, default=timezone.now())
     price = fields.DecimalField(required=True, precision=2)
     discount = fields.IntField(required=True, max_value=100, min_value=0)
 
