@@ -1,6 +1,5 @@
 import asyncio
 import functools
-import logging
 
 from worker.config import CountryCodeSteamCurrencyMapping
 
@@ -90,6 +89,12 @@ class BackendPackageDataBuilder:
         self.backend_package_data_build_schema = {
             "id": self._extract_app_id,
             "name": self._extract_app_name,
+            "type": self._extract_app_type,
+            "is_free": self._extract_app_is_free,
+            "short_description": self._extract_app_short_description,
+            "developers": self._extract_app_developers,
+            "publishers": self._extract_app_publishers,
+            "total_recommendations": self._extract_app_total_recommendations,
             "country_code": self._extract_response_country_code,
             "currency": self._extract_response_currency,
             "discount": self._extract_app_discount,
@@ -109,6 +114,31 @@ class BackendPackageDataBuilder:
     @staticmethod
     def _extract_app_name(app_data, *args, **kwargs):
         return app_data.get('name')
+
+    @staticmethod
+    def _extract_app_type(app_data, *args, **kwargs):
+        return app_data.get('type')
+
+    @staticmethod
+    def _extract_app_is_free(app_data, *args, **kwargs):
+        flag = app_data.get('is_free', False)
+        return flag if isinstance(flag, bool) else str(flag).lower() == 'true'
+
+    @staticmethod
+    def _extract_app_short_description(app_data, *args, **kwargs):
+        return app_data.get('short_description', '')
+
+    @staticmethod
+    def _extract_app_developers(app_data, *args, **kwargs):
+        return app_data.get('developers', [])
+
+    @staticmethod
+    def _extract_app_publishers(app_data, *args, **kwargs):
+        return app_data.get('publishers', [])
+
+    @staticmethod
+    def _extract_app_total_recommendations(app_data, *args, **kwargs):
+        return app_data.get('recommendations', {}).get('total', 0)
 
     @staticmethod
     def _extract_app_price(app_data, *args, **kwargs):

@@ -48,11 +48,11 @@ class GameSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=True)
     name = serializers.CharField(required=True)
     prices = serializers.DictField()
-    type = serializers.CharField(required=False)
-    short_description = serializers.CharField(required=False)
+    type = serializers.CharField(required=False, allow_blank=True)
+    short_description = serializers.CharField(required=False, allow_blank=True)
     is_free = serializers.BooleanField(required=False)
-    developers = serializers.ListField(child=serializers.CharField(), required=False)
-    publishers = serializers.ListField(child=serializers.CharField(), required=False)
+    developers = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+    publishers = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
     total_recommendations = serializers.IntegerField(required=False)
 
     def create(self, validated_data):
@@ -87,10 +87,10 @@ class GameUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(required=False)
     prices = serializers.DictField(required=False)
     type = serializers.CharField(required=False)
-    short_description = serializers.CharField(required=False)
+    short_description = serializers.CharField(required=False, allow_blank=True)
     is_free = serializers.BooleanField(required=False)
-    developers = serializers.ListField(child=serializers.CharField(), required=False)
-    publishers = serializers.ListField(child=serializers.CharField(), required=False)
+    developers = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+    publishers = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
     total_recommendations = serializers.IntegerField(required=False)
 
     @staticmethod
@@ -157,10 +157,10 @@ class GamePackageDataSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=True)
     name = serializers.CharField(required=False)
     type = serializers.CharField(required=False)
-    short_description = serializers.CharField(required=False)
+    short_description = serializers.CharField(required=False, allow_blank=True)
     is_free = serializers.BooleanField(required=False)
-    developers = serializers.ListField(child=serializers.CharField(), required=False)
-    publishers = serializers.ListField(child=serializers.CharField(), required=False)
+    developers = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+    publishers = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
     country_code = serializers.CharField(required=True, max_length=3)
     is_available = serializers.BooleanField(default=True)
     currency = serializers.CharField(required=False, max_length=3, allow_null=True)
@@ -250,7 +250,7 @@ class GamePackageDataSerializer(serializers.Serializer):
                     }
                 )
                 new_price_story_point.is_valid(raise_exception=True)
-                existed_price_story = country_price_collection.get("price_story")
+                existed_price_story = country_price_collection.get("price_story", [])
                 existed_price_story.append(new_price_story_point.data)
                 existed_price_story.sort(key=lambda price_story: price_story.get('timestamp'), reverse=True)
 

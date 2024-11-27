@@ -31,8 +31,8 @@ class Game(Document):
     is_free = fields.BooleanField(required=False, default=False)
     # TODO: split common model to types (Game, DLC, Trailer, etc) & implements specific fields like:
     # dlc = fields.ListField(fields.LazyReferenceField(DLC, reverse_delete_rule=NULLIFY), required=False)
-    developers = fields.ListField(fields.StringField(), required=False)
-    publishers = fields.ListField(fields.StringField(), required=False)
+    developers = fields.ListField(fields.StringField(), required=False, default=[])
+    publishers = fields.ListField(fields.StringField(), required=False, default=[])
     total_recommendations = fields.IntField(required=False, default=0)
     prices = fields.DictField()
 
