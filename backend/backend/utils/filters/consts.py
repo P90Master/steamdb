@@ -1,0 +1,3 @@
+DEFAULT_LOOKUP_EXPRESSION='exact'
+EMPTY_VALUES = ([], (), {}, "", None)
+NULL_CHOICE_VALUE = 'null'

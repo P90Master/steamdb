@@ -11,7 +11,7 @@ from api.serializers import (
     GamePackageDataSerializer,
     GamePackageSerializer
 )
-from api.filters import GameOrderingFilter
+from api.filters import GameOrderingFilterSet
 from games.documents import Game
 
 
@@ -39,7 +39,7 @@ class GamesView(APIViewExtended):
     serializer_class = GameSerializer
     serializer_last_price_class = GameActualPriceSerializer
     pagination_class = GamePagination
-    ordering_filter = GameOrderingFilter()
+    ordering_filter = GameOrderingFilterSet()
 
     def _convert_game_price_collection_to_last_price_only(self, game):
         new_price_collection = {}

@@ -5,34 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.settings import api_settings
 
-
-class FilterField:
-    def __init__(self, document_field_name=None):
-        self.document_field_name = document_field_name
-        self.parent_class = None
-
-    def set_parent_class(self, parent_class):
-        self.parent_class = parent_class
-
-    def set_default_document_field_name(self, document_field_name):
-        if self.document_field_name is None:
-            self.document_field_name = document_field_name
-
-
-class MethodFilterField(FilterField):
-    def __init__(self, action: str, *args, **kwargs):
-        self._parent_action_name = action
-        self.action = None
-        super().__init__(*args, **kwargs)
-
-    def filter(self, queryset, term, request, filterset):
-        """
-        This is a proxy for the actual method that defined in parent class.
-        """
-        if not self.action:
-            self.action = getattr(self.parent_class, self._parent_action_name, None)
-
-        return self.action(queryset, term, request, filterset) if self.action else queryset
+from .fields import ParamField, MethodParamField
 
 
 class CustomFilterMeta(type):
@@ -50,7 +23,7 @@ class CustomFilterMeta(type):
 
         # collects current filter fields
         filter_fields = {
-            field_name: field_obj for field_name, field_obj in attrs.items() if isinstance(field_obj, FilterField)
+            field_name: field_obj for field_name, field_obj in attrs.items() if isinstance(field_obj, ParamField)
         }
 
         # inherit parents filter fields
@@ -69,19 +42,19 @@ class CustomFilterMeta(type):
         # set parent class and defaults for all filter fields
         for field_name, filter_obj in filter_fields.items():
             filter_obj.set_parent_class(new_class)
-            filter_obj.set_default_document_field_name(field_name)
+            filter_obj.set_default_field_name(field_name)
 
         return new_class
 
 
-class CustomFilter(BaseFilterBackend, metaclass=CustomFilterMeta):
+class CoreFilter(BaseFilterBackend, metaclass=CustomFilterMeta):
     pass
 
 
 # TODO: filter_queryset -> get_ordering -> remove_invalid_fields (now "build_ordering") -> get_valid_fields pipeline
 #  based on "rest_framework.filters.OrderingFilter" implementation. The initial implementation is inefficient in this
-#  case. Need to abandon the original implementation in favor of an implementation similar to django_filters.
-class CustomOrderingFilter(CustomFilter):
+#  case. Need more complex refactoring of the original implementation.
+class CustomOrderingFilterSet(CoreFilter):
     class Meta:
         ordering_param = api_settings.ORDERING_PARAM
         ordering_title = _('Ordering')
@@ -118,11 +91,7 @@ class CustomOrderingFilter(CustomFilter):
 
         return None
 
-    def get_default_valid_fields(self, queryset, view, context=None):
-        # TODO: get from rest_framework.filters - adapt for working with MongoEngine documents
-        return {}
-
-    def build_ordering(self, queryset, fields, view, request) -> list[tuple[str, FilterField]]:
+    def build_ordering(self, queryset, fields, view, request) -> list[tuple[str, ParamField]]:
         valid_fields_collection = self.get_valid_fields(queryset, view, {'request': request})
 
         def term_without_direction(term_):
@@ -140,7 +109,7 @@ class CustomOrderingFilter(CustomFilter):
 
         return ordering
 
-    def get_valid_fields(self, queryset, view, context=None) -> dict[str, FilterField]:
+    def get_valid_fields(self, queryset, view, context=None) -> dict[str, ParamField]:
         if context is None:
             context = {}
 
@@ -151,9 +120,13 @@ class CustomOrderingFilter(CustomFilter):
 
         return valid_fields_collection
 
+    def get_default_valid_fields(self, queryset, view, context=None):
+        # TODO: get from rest_framework.filters - adapt for working with MongoEngine documents
+        return {}
+
     @staticmethod
-    def _filter_by_term(field_obj: FilterField, param_name: str) -> str:
-        filter_by = field_obj.document_field_name
+    def _filter_by_term(field_obj: ParamField, param_name: str) -> str:
+        filter_by = field_obj.field_name
 
         if param_name.startswith("-") or param_name.startswith("+"):
             filter_by = param_name[0] + filter_by
@@ -170,13 +143,12 @@ class CustomOrderingFilter(CustomFilter):
         terms_with_default_filter_in_a_row = []
         for param_name, filter_field_object in ordering:
 
-            if isinstance(filter_field_object, MethodFilterField):
+            if isinstance(filter_field_object, MethodParamField):
 
                 if terms_with_default_filter_in_a_row:
                     filtered_queryset = self.default_ordering_filter(
                         queryset=filtered_queryset,
                         terms=terms_with_default_filter_in_a_row,
-                        request=request,
                         filterset=self
                     )
                     terms_with_default_filter_in_a_row = []
@@ -184,7 +156,6 @@ class CustomOrderingFilter(CustomFilter):
                 filtered_queryset = filter_field_object.filter(
                     queryset=filtered_queryset,
                     term=param_name,
-                    request=request,
                     filterset=self
                 )
 
@@ -196,12 +167,39 @@ class CustomOrderingFilter(CustomFilter):
             filtered_queryset = self.default_ordering_filter(
                 queryset=filtered_queryset,
                 terms=terms_with_default_filter_in_a_row,
-                request=request,
                 filterset=self
             )
 
         return filtered_queryset
 
     @staticmethod
-    def default_ordering_filter(queryset, terms, request, filterset):
+    def default_ordering_filter(queryset, terms, filterset):
         return queryset.order_by(*terms)
+
+
+class FilterSet(CoreFilter):
+    def filter_queryset(self, request, queryset, view):
+        filters = self.get_filters(request, view)
+
+        if not filters:
+            return queryset
+
+        # for filter, value in filters.items() execute filter.filter(queryset, value)
+
+        return queryset
+
+    def get_filters(self, request, view):
+        # 1. get params from request.query_params
+        # 2. Correlate param names with existing filters
+        # 3. Clean param values
+        # 4. Return pairs (filter_obj, param_value)
+
+        return self.get_default_filters(view)
+
+    def get_default_filters(self, view):
+        filters = getattr(view, 'default_filters', None)
+
+        # TODO: default_filters - FilterSet - set of StaticFilter filters that are always applied
+        # TODO: StaticFilter - FilterField with const value
+
+        return None
