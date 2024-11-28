@@ -11,6 +11,7 @@ from api.serializers import (
     GamePackageDataSerializer,
     GamePackageSerializer
 )
+from api.filters import GameOrderingFilter
 from games.documents import Game
 
 
@@ -36,8 +37,9 @@ class GamePricesPagination(LimitOffsetPagination):
 
 class GamesView(APIViewExtended):
     serializer_class = GameSerializer
-    pagination_class = GamePagination
     serializer_last_price_class = GameActualPriceSerializer
+    pagination_class = GamePagination
+    ordering_filter = GameOrderingFilter()
 
     def _convert_game_price_collection_to_last_price_only(self, game):
         new_price_collection = {}
@@ -60,12 +62,13 @@ class GamesView(APIViewExtended):
         return game
 
     def get(self, request):
-        games = Game.objects.all()
+        all_games = Game.objects.all()
         paginator = self.pagination_class()
 
-        cut_queryset = paginator.paginate_queryset(games, request)
+        sorted_games = self.ordering_filter.filter_queryset(request=request, queryset=all_games, view=self)
+        paginated_games = paginator.paginate_queryset(sorted_games, request)
         games_with_actual_price_only = [
-            self._convert_game_price_collection_to_last_price_only(game) for game in cut_queryset
+            self._convert_game_price_collection_to_last_price_only(game) for game in paginated_games
         ]
         serializer = self.serializer_class(games_with_actual_price_only, many=True)
 

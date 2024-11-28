@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'games.apps.GamesConfig',
     'api.apps.ApiConfig',
+
 ]
 
 MIDDLEWARE = [
