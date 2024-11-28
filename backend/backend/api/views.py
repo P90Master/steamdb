@@ -45,14 +45,20 @@ class GamesView(APIViewExtended):
         new_price_collection = {}
 
         for country_code, price_collection in game.prices.items():
-            actual_price = price_collection.get("price_story")[-1]
-            actual_collection = {
-                "is_available": price_collection.get("is_available"),
-                "currency": price_collection.get("currency"),
-                "price": actual_price.get("price"),
-                "discount": actual_price.get("discount"),
-                "last_updated": actual_price.get("timestamp")
-            }
+            if price_story := price_collection.get("price_story"):
+                actual_price = price_story[-1]
+                actual_collection = {
+                    "is_available": price_collection.get("is_available"),
+                    "currency": price_collection.get("currency"),
+                    "price": actual_price.get("price"),
+                    "discount": actual_price.get("discount"),
+                    "last_updated": actual_price.get("timestamp")
+                }
+            else:
+                actual_collection = {
+                    "is_available": price_collection.get("is_available"),
+                    "currency": price_collection.get("currency"),
+                }
 
             serializer = self.serializer_last_price_class(data=actual_collection)
             serializer.is_valid(raise_exception=True)

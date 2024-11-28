@@ -25,14 +25,14 @@ class MethodFilterField(FilterField):
         self.action = None
         super().__init__(*args, **kwargs)
 
-    def filter(self, queryset, request):
+    def filter(self, queryset, term, request, filterset):
         """
         This is a proxy for the actual method that defined in parent class.
         """
         if not self.action:
             self.action = getattr(self.parent_class, self._parent_action_name, None)
 
-        return self.action(queryset, request) if self.action else queryset
+        return self.action(queryset, term, request, filterset) if self.action else queryset
 
 
 class CustomFilterMeta(type):
@@ -174,13 +174,19 @@ class CustomOrderingFilter(CustomFilter):
 
                 if terms_with_default_filter_in_a_row:
                     filtered_queryset = self.default_ordering_filter(
-                        filtered_queryset,
-                        terms_with_default_filter_in_a_row,
-                        request
+                        queryset=filtered_queryset,
+                        terms=terms_with_default_filter_in_a_row,
+                        request=request,
+                        filterset=self
                     )
                     terms_with_default_filter_in_a_row = []
 
-                filtered_queryset = filter_field_object.filter(filtered_queryset, request)
+                filtered_queryset = filter_field_object.filter(
+                    queryset=filtered_queryset,
+                    term=param_name,
+                    request=request,
+                    filterset=self
+                )
 
             else:
                 filter_by_term = self._filter_by_term(filter_field_object, param_name)
@@ -188,12 +194,14 @@ class CustomOrderingFilter(CustomFilter):
 
         if terms_with_default_filter_in_a_row:
             filtered_queryset = self.default_ordering_filter(
-                filtered_queryset,
-                terms_with_default_filter_in_a_row,
-                request
+                queryset=filtered_queryset,
+                terms=terms_with_default_filter_in_a_row,
+                request=request,
+                filterset=self
             )
 
         return filtered_queryset
 
-    def default_ordering_filter(self, queryset, terms, request):
+    @staticmethod
+    def default_ordering_filter(queryset, terms, request, filterset):
         return queryset.order_by(*terms)

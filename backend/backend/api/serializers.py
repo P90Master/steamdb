@@ -37,9 +37,9 @@ class GamePriceSerializer(serializers.Serializer):
 class GameActualPriceSerializer(serializers.Serializer):
     is_available = serializers.BooleanField(default=True)
     currency = serializers.CharField(required=False, max_length=3, allow_null=True)
-    discount = serializers.IntegerField(min_value=0, max_value=100, default=0)
-    price = serializers.DecimalField(required=True, min_value=0.0, decimal_places=2, max_digits=10)
-    last_updated = serializers.DateTimeField()
+    discount = serializers.IntegerField(required=False, min_value=0, max_value=100, default=0)
+    price = serializers.DecimalField(required=False, min_value=0.0, decimal_places=2, max_digits=10)
+    last_updated = serializers.DateTimeField(required=False)
 
 
 # For manual use ###############################################################
