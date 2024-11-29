@@ -1,4 +1,6 @@
 from mongoengine import DoesNotExist
+from django.core.cache import cache
+from django.conf import settings
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.pagination import LimitOffsetPagination
@@ -100,15 +102,25 @@ class GameDetailView(APIViewExtended):
 
         return game
 
+    def _get_paginated_game_response(self, game, request):
+        paginated_game = self._cut_prices_by_paginator(game, request, self.paginator)
+        serializer = self.serializer_class(paginated_game)
+        return self.paginator.get_paginated_response(serializer.data)
+
     def get(self, request, game_id):
+        cache_key = f'game_detail_{game_id}'
+        cached_game_data = cache.get(cache_key)
+
+        if cached_game_data:
+            return self._get_paginated_game_response(cached_game_data, request)
+
         try:
             game = Game.objects.get(id=game_id)
         except DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        game = self._cut_prices_by_paginator(game, request, self.paginator)
-        serializer = self.serializer_class(game)
-        return self.paginator.get_paginated_response(serializer.data)
+        cache.set(cache_key, game, timeout=settings.CACHE_TIMEOUT)
+        return self._get_paginated_game_response(game, request)
 
     def delete(self, request, game_id):
         try:

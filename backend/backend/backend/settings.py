@@ -35,13 +35,14 @@ INSTALLED_APPS = [
     'rest_framework',
     'games.apps.GamesConfig',
     'api.apps.ApiConfig',
-
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    # TODO: Debug configuration & switch
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -113,6 +114,18 @@ STATIC_URL = 'static/'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Cache
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f'redis://{os.getenv("CACHE_HOST", "localhost")}:{os.getenv("CACHE_PORT", 6379)}/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+CACHE_TIMEOUT = int(os.getenv('CACHE_TIMEOUT', 60 * 20))
 
 # Games database
 MONGO_HOST = os.getenv('MONGO_HOST', "127.0.0.1")
