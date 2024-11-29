@@ -2,6 +2,9 @@ from pathlib import Path
 
 import os
 
+from utils.enums import CountryCodes
+
+
 #from dotenv import load_dotenv
 
 # FIXME In future loading from docker container environment
@@ -118,3 +121,6 @@ MONGO_USER = os.getenv('MONGO_USER')
 MONGO_PASSWORD = os.getenv('MONGO_PASSWORD')
 MONGO_ALIAS = os.getenv('MONGO_ALIAS')
 MONGO_DB = os.getenv('MONGO_DB', 'games')
+
+# Business logic
+DEFAULT_COUNTRY_CODE = os.getenv('DEFAULT_COUNTRY_CODE', CountryCodes.united_states.value)

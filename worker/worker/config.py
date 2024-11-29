@@ -64,6 +64,7 @@ class CountryCodeSteamCurrencyMapping(Enum):
 
 class WorkerSettings(BaseSettings):
     DEFAULT_COUNTRY_CODE: str = CountryCodes.united_states.value
+    # TODO: convert from string to list
     DEFAULT_COUNTRY_BUNDLE: list[str] = [
         CountryCodes.united_states.value,
         CountryCodes.united_kingdom.value,

@@ -63,7 +63,7 @@ class CountryCodeSteamCurrencyMapping(Enum):
 
 class OrchestratorSettings(BaseSettings):
     DEFAULT_COUNTRY_CODE: str = CountryCodes.united_states.value
-    # TODO: validate: filter duplicates
+    # TODO: convert from string to list
     DEFAULT_COUNTRY_BUNDLE: list[str] = [
         CountryCodes.united_states.value,
         CountryCodes.united_kingdom.value,

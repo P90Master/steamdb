@@ -1,3 +1,5 @@
+from mongoengine.queryset.visitor import Q
+
 from utils.filters import (
     FilterSet,
     CustomOrderingFilterSet,
@@ -5,14 +7,16 @@ from utils.filters import (
     MethodParamField,
     StringFilter,
     BooleanFilter,
+    MethodFilter,
+    EMPTY_VALUES,
 )
-from utils.enums import CountryCodes
+from django.conf import settings
 
 
 class GameOrderingFilterSet(CustomOrderingFilterSet):
     class Meta:
         ordering_param = 'order_by'
-        main_country = CountryCodes.united_states.value
+        main_country = settings.DEFAULT_COUNTRY_CODE
 
     @property
     def main_country(self):
@@ -36,18 +40,71 @@ class GameOrderingFilterSet(CustomOrderingFilterSet):
 
 
 class GameFilterSet(FilterSet):
+    class Meta:
+        main_country = settings.DEFAULT_COUNTRY_CODE
+
+    @property
+    def main_country(self):
+        return self._meta.main_country
+
     name = StringFilter()
     is_free = BooleanFilter()
-    # TODO: MethodFilter cause of complex logic
-    # available_in_countries = ListFilter(lookup_expr='in')
+    available_in_countries__all = MethodFilter(action='filter_by_availability_in_countries__all')
+    available_in_countries__any = MethodFilter(action='filter_by_availability_in_countries__any')
 
-    # TODO: MethodFilter cause of complex logic
+    discount = MethodFilter(action='filter_by_discount')
+    discount__gt = MethodFilter(action='filter_by_discount__gt')
+    discount__lt = MethodFilter(action='filter_by_discount__lt')
+
+    @staticmethod
+    def filter_by_discount(queryset, value, filterset, suffix=None):
+        if value in EMPTY_VALUES:
+            return queryset
+
+        filtered_queryset = queryset
+        for discount_size in value:
+            try:
+                discount_size = int(discount_size)
+            except (ValueError, TypeError):
+                continue
+
+            filtered_queryset = filtered_queryset.filter(
+                **{f'prices__{filterset.main_country}__price_story__0__discount{suffix}': discount_size}
+            )
+
+        return filtered_queryset
+
+    @staticmethod
+    def filter_by_discount__gt(queryset, value, filterset):
+        return filterset.filter_by_discount(queryset, value, filterset, suffix='__gt')
+
+    @staticmethod
+    def filter_by_discount__lt(queryset, value, filterset):
+        return filterset.filter_by_discount(queryset, value, filterset, suffix='__lt')
+
+    @staticmethod
+    def filter_by_availability_in_countries__any(queryset, value, filterset):
+        if value in EMPTY_VALUES:
+            return queryset
+
+        expression = Q()
+        for country in value:
+            expression |= Q(**{'prices__%s__is_available' % country: True})
+
+        return queryset(expression)
+
+    @staticmethod
+    def filter_by_availability_in_countries__all(queryset, value, filterset):
+        if value in EMPTY_VALUES:
+            return queryset
+
+        expression = Q()
+        for country in value:
+            expression &= Q(**{'prices__%s__is_available' % country: True})
+
+        return queryset(expression)
+
     # TODO: Needs converting to union currency for comparison -> key-value storage for caching&updating exchange rates
-    # price = NumberFilter()
-    # price__gt =NumberFilter(field_name='price', lookup_expr='gt')
-    # price__lt = NumberFilter(field_name='price', lookup_expr='lt')
-
-    # TODO: MethodFilter cause of complex logic
-    # discount = NumberFilter()
-    # discount__gt = NumberFilter(field_name='price', lookup_expr='gt')
-    # discount__lt = NumberFilter(field_name='price', lookup_expr='lt')
+    # price = ...
+    # price__gt = ...
+    # price__lt = ...

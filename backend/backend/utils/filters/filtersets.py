@@ -54,14 +54,52 @@ class CoreFilter(BaseFilterBackend, metaclass=CustomFilterMeta):
     pass
 
 
-# TODO: filter_queryset -> get_ordering -> remove_invalid_fields (now "build_ordering") -> get_valid_fields pipeline
-#  based on "rest_framework.filters.OrderingFilter" implementation. The initial implementation is inefficient in this
-#  case. Need more complex refactoring of the original implementation.
+# TODO: based on "rest_framework.filters.OrderingFilter" implementation. The initial implementation is inefficient in
+#  this case. Need more complex refactoring of the original implementation.
 class CustomOrderingFilterSet(CoreFilter):
     class Meta:
         ordering_param = api_settings.ORDERING_PARAM
         ordering_title = _('Ordering')
         ordering_description = _('Which field to use when ordering the results.')
+
+    def filter_queryset(self, request, queryset, view):
+        ordering = self.get_ordering(request, queryset, view)
+        if not ordering:
+            return queryset
+
+        filtered_queryset = queryset
+
+        terms_with_default_filter_in_a_row = []
+        for param_name, filter_field_object in ordering:
+
+            if isinstance(filter_field_object, MethodParamField):
+
+                if terms_with_default_filter_in_a_row:
+                    filtered_queryset = self.default_ordering_filter(
+                        queryset=filtered_queryset,
+                        terms=terms_with_default_filter_in_a_row,
+                        filterset=self
+                    )
+                    terms_with_default_filter_in_a_row = []
+
+                filtered_queryset = filter_field_object.filter(
+                    queryset=filtered_queryset,
+                    term=param_name,
+                    filterset=self
+                )
+
+            else:
+                filter_by_term = self._filter_by_term(filter_field_object, param_name)
+                terms_with_default_filter_in_a_row.append(filter_by_term)
+
+        if terms_with_default_filter_in_a_row:
+            filtered_queryset = self.default_ordering_filter(
+                queryset=filtered_queryset,
+                terms=terms_with_default_filter_in_a_row,
+                filterset=self
+            )
+
+        return filtered_queryset
 
     def get_ordering(self, request, queryset, view):
         """
@@ -82,6 +120,19 @@ class CustomOrderingFilterSet(CoreFilter):
 
         # No ordering was included, or all the ordering fields were invalid
         return self.get_default_ordering(view)
+
+    @staticmethod
+    def _filter_by_term(field_obj: ParamField, param_name: str) -> str:
+        filter_by = field_obj.field_name
+
+        if param_name.startswith("-") or param_name.startswith("+"):
+            filter_by = param_name[0] + filter_by
+
+        return filter_by
+
+    @staticmethod
+    def default_ordering_filter(queryset, terms, filterset):
+        return queryset.order_by(*terms)
 
     def get_default_ordering(self, view):
         ordering = getattr(view, 'ordering', None)
@@ -127,58 +178,6 @@ class CustomOrderingFilterSet(CoreFilter):
         # TODO: get from rest_framework.filters - adapt for working with MongoEngine documents
         return {}
 
-    @staticmethod
-    def _filter_by_term(field_obj: ParamField, param_name: str) -> str:
-        filter_by = field_obj.field_name
-
-        if param_name.startswith("-") or param_name.startswith("+"):
-            filter_by = param_name[0] + filter_by
-
-        return filter_by
-
-    def filter_queryset(self, request, queryset, view):
-        ordering = self.get_ordering(request, queryset, view)
-        if not ordering:
-            return queryset
-
-        filtered_queryset = queryset
-
-        terms_with_default_filter_in_a_row = []
-        for param_name, filter_field_object in ordering:
-
-            if isinstance(filter_field_object, MethodParamField):
-
-                if terms_with_default_filter_in_a_row:
-                    filtered_queryset = self.default_ordering_filter(
-                        queryset=filtered_queryset,
-                        terms=terms_with_default_filter_in_a_row,
-                        filterset=self
-                    )
-                    terms_with_default_filter_in_a_row = []
-
-                filtered_queryset = filter_field_object.filter(
-                    queryset=filtered_queryset,
-                    term=param_name,
-                    filterset=self
-                )
-
-            else:
-                filter_by_term = self._filter_by_term(filter_field_object, param_name)
-                terms_with_default_filter_in_a_row.append(filter_by_term)
-
-        if terms_with_default_filter_in_a_row:
-            filtered_queryset = self.default_ordering_filter(
-                queryset=filtered_queryset,
-                terms=terms_with_default_filter_in_a_row,
-                filterset=self
-            )
-
-        return filtered_queryset
-
-    @staticmethod
-    def default_ordering_filter(queryset, terms, filterset):
-        return queryset.order_by(*terms)
-
 
 class FilterSet(CoreFilter):
     def filter_queryset(self, request, queryset, view):
@@ -189,8 +188,12 @@ class FilterSet(CoreFilter):
 
         filtered_queryset = queryset
         for filter_obj, values in filters:
+            if isinstance(filter_obj, MethodParamField):
+                filtered_queryset = filter_obj.filter(filtered_queryset, values, self)
+                continue
+
             for value in values:
-                filtered_queryset = filter_obj.filter(filtered_queryset, value)
+                filtered_queryset = filter_obj.filter(filtered_queryset, value, self)
 
         return filtered_queryset
 

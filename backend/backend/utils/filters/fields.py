@@ -11,6 +11,7 @@ __all__ = (
     "DateFilter",
     "BooleanFilter",
     "ChoiceFilter",
+    "MethodFilter",
 )
 
 
@@ -37,6 +38,8 @@ class MethodParamField(ParamField):
         """
         This is a proxy for the actual method that defined in parent class.
         """
+
+        # cause filter object initiates before filterset class
         if not self.action:
             self.action = getattr(self.parent_class, self._parent_action_name, None)
 
@@ -56,7 +59,7 @@ class FilterField(ParamField):
     def get_method(self, queryset):
         return queryset.exclude if self.exclude else queryset.filter
 
-    def filter(self, queryset, value):
+    def filter(self, queryset, value, filterset=None):
         if value in EMPTY_VALUES:
             return queryset
 
@@ -65,6 +68,15 @@ class FilterField(ParamField):
 
         lookup = "%s%s" % (self.field_name, ('__'+ self.lookup_expr) if self.lookup_expr else '')
         return self.get_method(queryset)(**{lookup: value})
+
+
+class MethodFilter(MethodParamField):
+    """
+    Just renamed copy of MethodParamField
+    """
+
+    def filter(self, queryset, value, filterset):
+        return super().filter(queryset, value, filterset)
 
 
 class NumberFilter(FilterField):
@@ -107,7 +119,7 @@ class ChoiceFilter(FilterField):
         self.null_value = kwargs.get("null_value", NULL_CHOICE_VALUE)
         super().__init__(*args, **kwargs)
 
-    def filter(self, queryset, value):
+    def filter(self, queryset, value, filterset=None):
         if value != self.null_value:
             return super().filter(queryset, value)
 
