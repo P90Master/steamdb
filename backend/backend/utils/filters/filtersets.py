@@ -8,6 +8,9 @@ from rest_framework.settings import api_settings
 from .fields import ParamField, MethodParamField
 
 
+__all__ = ("FilterSet", "CustomOrderingFilterSet")
+
+
 class CustomFilterMeta(type):
     def __new__(cls, name, bases, attrs):
         meta = {}
@@ -184,17 +187,39 @@ class FilterSet(CoreFilter):
         if not filters:
             return queryset
 
-        # for filter, value in filters.items() execute filter.filter(queryset, value)
+        filtered_queryset = queryset
+        for filter_obj, values in filters:
+            for value in values:
+                filtered_queryset = filter_obj.filter(filtered_queryset, value)
 
-        return queryset
+        return filtered_queryset
 
     def get_filters(self, request, view):
-        # 1. get params from request.query_params
-        # 2. Correlate param names with existing filters
-        # 3. Clean param values
-        # 4. Return pairs (filter_obj, param_value)
+        valid_filters_collection = self._meta._fields
 
-        return self.get_default_filters(view)
+        valid_filters_in_request = [
+            (
+                valid_filters_collection[param_name],
+                self.clean_filter_value(request.query_params.getlist(param_name))
+            )
+            for param_name in request.query_params
+            if param_name in valid_filters_collection
+        ]
+
+        return valid_filters_in_request if valid_filters_in_request else self.get_default_filters(view)
+
+    @staticmethod
+    def clean_filter_value(values: list[str]):
+        # In fact, if we get several values for one filter, then with 95% probability they are either mutually
+        # exclusive or repeated. However, we must remember about this possibility, and in a situation where
+        # we have 2 filter values, one of which specifies the queryset more strongly, we must take it into account.
+        # Therefore, we cannot discard several values, leaving only 1.
+
+        cleaned_values = []
+        for value in values:
+            cleaned_values.extend([param.strip() for param in value.split(',')])
+
+        return cleaned_values
 
     def get_default_filters(self, view):
         filters = getattr(view, 'default_filters', None)

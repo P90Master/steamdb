@@ -11,7 +11,7 @@ from api.serializers import (
     GamePackageDataSerializer,
     GamePackageSerializer
 )
-from api.filters import GameOrderingFilterSet
+from api.filters import GameOrderingFilterSet, GameFilterSet
 from games.documents import Game
 
 
@@ -38,8 +38,9 @@ class GamePricesPagination(LimitOffsetPagination):
 class GamesView(APIViewExtended):
     serializer_class = GameSerializer
     serializer_last_price_class = GameActualPriceSerializer
-    pagination_class = GamePagination
-    ordering_filter = GameOrderingFilterSet()
+    paginator = GamePagination()
+    ordering_filterset = GameOrderingFilterSet()
+    filterset = GameFilterSet()
 
     def _convert_game_price_collection_to_last_price_only(self, game):
         new_price_collection = {}
@@ -69,16 +70,16 @@ class GamesView(APIViewExtended):
 
     def get(self, request):
         all_games = Game.objects.all()
-        paginator = self.pagination_class()
 
-        sorted_games = self.ordering_filter.filter_queryset(request=request, queryset=all_games, view=self)
-        paginated_games = paginator.paginate_queryset(sorted_games, request)
+        filtered_games = self.filterset.filter_queryset(request=request, queryset=all_games, view=self)
+        sorted_games = self.ordering_filterset.filter_queryset(request=request, queryset=filtered_games, view=self)
+        paginated_games = self.paginator.paginate_queryset(sorted_games, request)
         games_with_actual_price_only = [
             self._convert_game_price_collection_to_last_price_only(game) for game in paginated_games
         ]
         serializer = self.serializer_class(games_with_actual_price_only, many=True)
 
-        return paginator.get_paginated_response(serializer.data)
+        return self.paginator.get_paginated_response(serializer.data)
 
     def post(self, request, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -88,7 +89,7 @@ class GamesView(APIViewExtended):
 class GameDetailView(APIViewExtended):
     serializer_class = GameSerializer
     serializer_update_class = GameUpdateSerializer
-    pagination_class = GamePricesPagination
+    paginator = GamePricesPagination()
 
     @staticmethod
     def _cut_prices_by_paginator(game, request, paginator):
@@ -105,10 +106,9 @@ class GameDetailView(APIViewExtended):
         except DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        paginator = self.pagination_class()
-        game = self._cut_prices_by_paginator(game, request, paginator)
+        game = self._cut_prices_by_paginator(game, request, self.paginator)
         serializer = self.serializer_class(game)
-        return paginator.get_paginated_response(serializer.data)
+        return self.paginator.get_paginated_response(serializer.data)
 
     def delete(self, request, game_id):
         try:
@@ -161,7 +161,6 @@ class GamesPackageView(APIViewExtended):
 
         except DoesNotExist:
             # if task response isn't success and game with given id doesn't exist => may be wrong id - skip
-            # TODO: info log message
             return Response(request_serializer.validated_data, status=status.HTTP_200_OK)
 
         except Exception as e:

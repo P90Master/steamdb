@@ -3,9 +3,7 @@ from utils.filters import (
     CustomOrderingFilterSet,
     ParamField,
     MethodParamField,
-    FilterField,
-    NumberFilter,
-    DateFilter,
+    StringFilter,
     BooleanFilter,
 )
 from utils.enums import CountryCodes
@@ -38,21 +36,18 @@ class GameOrderingFilterSet(CustomOrderingFilterSet):
 
 
 class GameFilterSet(FilterSet):
-    name = FilterField()
+    name = StringFilter()
     is_free = BooleanFilter()
     # TODO: MethodFilter cause of complex logic
     # available_in_countries = ListFilter(lookup_expr='in')
 
     # TODO: MethodFilter cause of complex logic
-    price = NumberFilter()
-    price__gt =NumberFilter(field_name='price', lookup_expr='gt')
-    price__lt = NumberFilter(field_name='price', lookup_expr='lt')
+    # TODO: Needs converting to union currency for comparison -> key-value storage for caching&updating exchange rates
+    # price = NumberFilter()
+    # price__gt =NumberFilter(field_name='price', lookup_expr='gt')
+    # price__lt = NumberFilter(field_name='price', lookup_expr='lt')
 
     # TODO: MethodFilter cause of complex logic
-    discount = NumberFilter()
-    discount__gt = NumberFilter(field_name='price', lookup_expr='gt')
-    discount__lt = NumberFilter(field_name='price', lookup_expr='lt')
-
-    # release_year = DateFilter(field_name='release_date', lookup_expr='year')
-    # release_year__gt = DateFilter(field_name='release_date', lookup_expr='year__gt')
-    # release_year__lt = DateFilter(field_name='release_date', lookup_expr='year__lt')
+    # discount = NumberFilter()
+    # discount__gt = NumberFilter(field_name='price', lookup_expr='gt')
+    # discount__lt = NumberFilter(field_name='price', lookup_expr='lt')

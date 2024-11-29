@@ -1,6 +1,7 @@
 from typing import Union
 
 from mongoengine import Document, EmbeddedDocument, fields
+from mongoengine.queryset import queryset_manager
 from django.conf import settings
 from django.utils import timezone
 
@@ -14,8 +15,8 @@ class PriceStoryPoint(EmbeddedDocument):
 
 
 class GamePrice(EmbeddedDocument):
-    is_available = fields.BooleanField(default=True)
-    currency = fields.StringField(required=False, max_length=3)
+    is_available = fields.BooleanField(required=False, default=True)
+    currency = fields.StringField(required=False, max_length=3, default=None, null=True)
     price_story = fields.EmbeddedDocumentListField(PriceStoryPoint)
 
 
@@ -28,7 +29,7 @@ class Game(Document):
     # TODO: change to EnumField
     type = fields.StringField(required=False, default='')
     short_description = fields.StringField(required=False, default='')
-    is_free = fields.BooleanField(required=False, default=False)
+    is_free = fields.BooleanField(required=False, default=None, null=True)
     # TODO: split common model to types (Game, DLC, Trailer, etc) & implements specific fields like:
     # dlc = fields.ListField(fields.LazyReferenceField(DLC, reverse_delete_rule=NULLIFY), required=False)
     developers = fields.ListField(fields.StringField(), required=False, default=[])
@@ -45,4 +46,8 @@ class Game(Document):
 
         return float(price_story[0].get('price'))
 
-    meta = {"db_alias": settings.MONGO_ALIAS, "collection": "games"}
+    @queryset_manager
+    def objects(doc_cls, queryset):
+        return queryset.order_by('-total_recommendations')
+
+    meta = {"db_alias": settings.MONGO_ALIAS, "collection": settings.MONGO_DB}

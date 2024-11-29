@@ -47,10 +47,10 @@ class GameActualPriceSerializer(serializers.Serializer):
 class GameSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=True)
     name = serializers.CharField(required=True)
-    prices = serializers.DictField()
+    prices = serializers.DictField(required=True)
     type = serializers.CharField(required=False, allow_blank=True)
     short_description = serializers.CharField(required=False, allow_blank=True)
-    is_free = serializers.BooleanField(required=False)
+    is_free = serializers.BooleanField(required=False, default=None, allow_null=True)
     developers = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
     publishers = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
     total_recommendations = serializers.IntegerField(required=False)
