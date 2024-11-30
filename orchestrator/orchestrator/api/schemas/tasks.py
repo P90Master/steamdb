@@ -1,4 +1,3 @@
-from random import choice
 from typing import Annotated, List, Literal
 
 from pydantic import BaseModel, Field

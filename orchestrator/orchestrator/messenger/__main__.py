@@ -1,12 +1,12 @@
 import threading
 import time
 
-from pika.exceptions import AMQPConnectionError
+from pika.exceptions import AMQPConnectionError, ChannelWrongStateError
 
 from orchestrator.config import settings
 from orchestrator.logger import get_logger
 from orchestrator.db import Session
-from .connections import worker_channel
+from .connections import create_channel
 from .tasks import TaskManager
 from .utils import HandledException
 from .logger import base_logger
@@ -14,6 +14,7 @@ from .logger import base_logger
 
 def consume_messages():
     consuming_messages_logger = get_logger(settings, name='messenger.received_worker_task')
+    worker_channel, broker_connection = create_channel()
 
     task_manager = TaskManager(
         messenger_channel=worker_channel,
@@ -44,14 +45,22 @@ def consume_messages():
         except HandledException:
             worker_channel.stop_consuming()
 
+        except ChannelWrongStateError:
+            base_logger.warning(f"Broker channel closed. Reopening...")
+            broker_connection.close()
+            worker_channel, broker_connection = create_channel()
+
         except AMQPConnectionError:
-            worker_channel.stop_consuming()
-            time.sleep(1)
+            base_logger.warning(f"Connection to broker lost. Reconnecting...")
+            broker_connection.close()
+            time.sleep(5)
+            worker_channel, broker_connection = create_channel()
 
         except Exception as unhandled_critical_error:
             base_logger.critical(f"An unhandled exception received. Exception: {unhandled_critical_error}")
             stop_consuming_messages.set()
             worker_channel.stop_consuming()
+            broker_connection.close()
             break
 
 

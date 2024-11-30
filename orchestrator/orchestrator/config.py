@@ -77,6 +77,8 @@ class OrchestratorSettings(BaseSettings):
     DB_INPUT_BATCH_SIZE: int = 1000
     DEBUG: bool = True
     API_VERSION: str = 'v1'
+    SCHEDULED_TASKS_PRIORITY: int = 1
+    TASKS_FROM_API_PRIORITY: int = 3
 
     DB_HOST: str = 'orchestrator-db'
     DB_PORT: int = 5432

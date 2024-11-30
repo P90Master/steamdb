@@ -4,6 +4,7 @@ import json
 from collections.abc import Iterable
 from datetime import datetime
 from logging import Logger
+from typing import Optional
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
@@ -33,7 +34,7 @@ class TaskManagerMeta(type):
 # TODO: Separate task logic from messenger utility
 class TaskManager(metaclass=TaskManagerMeta):
     def __init__(
-            self, messenger_channel: BlockingChannel,
+            self, messenger_channel: Optional[BlockingChannel],
             session_maker: Session,
             logger: Logger = None,
             send_msg_with_priority: int = 1
@@ -55,6 +56,10 @@ class TaskManager(metaclass=TaskManagerMeta):
         return self._receive_tasks.get(task_name)
 
     def register_task(self, task_context):
+        if not self.messenger_channel:
+            self.logger.error('Cannot register task - messenger channel is not initialized')
+            return
+
         context_json_payload = json.dumps(task_context)
         self.messenger_channel.basic_publish(
             exchange='',
