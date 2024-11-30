@@ -76,6 +76,7 @@ class OrchestratorSettings(BaseSettings):
     BATCH_SIZE_OF_UPDATING_STEAM_APPS: int = 20
     DB_INPUT_BATCH_SIZE: int = 1000
     DEBUG: bool = True
+    API_VERSION: str = 'v1'
 
     DB_HOST: str = 'orchestrator-db'
     DB_PORT: int = 5432

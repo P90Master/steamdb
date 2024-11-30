@@ -3,18 +3,24 @@ from django.core.cache import cache
 from django.conf import settings
 from rest_framework import status
 from rest_framework.views import APIView
+from rest_framework.decorators import api_view
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
 from api.serializers import (
+    # Games ######################
     GameSerializer,
     GameActualPriceSerializer,
     GameUpdateSerializer,
     GamePackageDataSerializer,
-    GamePackageSerializer
+    GamePackageSerializer,
+    # Tasks ######################
+    UpdateAppDataTaskSerializer,
+    BulkUpdateAppDataTaskSerializer,
 )
 from api.filters import GameOrderingFilterSet, GameFilterSet
 from games.documents import Game
+from external_api import OrchestratorAPIClient
 
 
 class APIViewExtended(APIView):
@@ -177,3 +183,50 @@ class GamesPackageView(APIViewExtended):
 
         except Exception as e:
             return Response(e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+### Tasks #############################################################################
+
+orchestrator_client = OrchestratorAPIClient()
+
+
+def build_task_response(response_collection):
+    if status.is_success(response_collection.get('status')):
+        return Response(response_collection.get('data', {}), status=status.HTTP_201_CREATED)
+
+    return Response(response_collection.get('data', {}), status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST',])
+def update_app_data_task(request):
+    serializer = UpdateAppDataTaskSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    response_collection = orchestrator_client.register_update_app_data_task(
+        app_id=serializer.validated_data['app_id'],
+        country_code=serializer.validated_data['country_code']
+    )
+    return build_task_response(response_collection)
+
+
+@api_view(['POST',])
+def bulk_update_app_data_task(request):
+    serializer = BulkUpdateAppDataTaskSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    response_collection = orchestrator_client.register_bulk_update_app_data_task(
+        app_ids=serializer.validated_data['app_ids'],
+        country_codes=serializer.validated_data['country_codes']
+    )
+    return build_task_response(response_collection)
+
+
+@api_view(['POST',])
+def update_app_list_task(request):
+    response_collection = orchestrator_client.register_update_app_list_task()
+    return build_task_response(response_collection)
+
+@api_view(['GET',])
+def get_task_status(request, task_id: str):
+    response_collection = orchestrator_client.get_task_status(task_id=task_id)
+    return build_task_response(response_collection)

@@ -1,14 +1,23 @@
 from fastapi import FastAPI, APIRouter
 
+from orchestrator.config import settings
 from .routers import task_router
 
 
 app = FastAPI()
 
+api_v1_router = APIRouter(prefix=f'/{settings.API_VERSION}', tags=[f'API {settings.API_VERSION}'])
+api_v1_router.include_router(task_router)
 common_api_router = APIRouter(prefix='/api', tags=['API'])
-api_v1_router = APIRouter(prefix='/v1', tags=['API v1'])
-api_v1_router.include_router(common_api_router)
+common_api_router.include_router(api_v1_router)
 
-task_router.include_router(api_v1_router)
+app.include_router(common_api_router)
 
-app.include_router(task_router)
+
+#common_api_router = APIRouter(prefix='/api', tags=['API'])
+#api_v1_router = APIRouter(prefix=f'/{settings.API_VERSION}', tags=[f'API {settings.API_VERSION}'])
+#api_v1_router.include_router(common_api_router)
+
+#task_router.include_router(api_v1_router)
+
+#app.include_router(task_router)

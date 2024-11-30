@@ -72,13 +72,13 @@ class TaskManager(metaclass=TaskManagerMeta):
         if not (requested_task_name := data.get('task_name')):
             # TODO: id of message & logging it (broker deletes messages - save wrong messages for debug?)
             self.logger.error('Message received from worker doesnt contain "task_name". Message discarded.')
-            ch.basic_reject(delivery_tag=method.delivery_tag)
+            ch.basic_reject(delivery_tag=method.delivery_tag, requeue=False)
             return
 
         if not (handle_received_task := self.get_receive_task_handler(requested_task_name)):
             self.logger.error(f'Message received from worker contains an invalid task name '
                               f'- a task named "{requested_task_name}" does not exist. Message discarded.')
-            ch.basic_reject(delivery_tag=method.delivery_tag)
+            ch.basic_reject(delivery_tag=method.delivery_tag, requeue=False)
             return
 
         try:
@@ -88,15 +88,15 @@ class TaskManager(metaclass=TaskManagerMeta):
         except TypeError:
             error_msg = f'The parameters passed to the task "{requested_task_name}" do not match its signature'
             self.logger.error(error_msg)
-            ch.basic_reject(delivery_tag=method.delivery_tag)
+            ch.basic_reject(delivery_tag=method.delivery_tag, requeue=False)
 
         except HandledException:
-            ch.basic_reject(delivery_tag=method.delivery_tag)
+            ch.basic_reject(delivery_tag=method.delivery_tag, requeue=False)
 
         except Exception as unhandled_error:
             error_msg = f'Task "{requested_task_name}" execution failed with error: {unhandled_error}'
             self.logger.error(error_msg)
-            ch.basic_reject(delivery_tag=method.delivery_tag)
+            ch.basic_reject(delivery_tag=method.delivery_tag, requeue=False)
 
         else:
             ch.basic_ack(delivery_tag=method.delivery_tag)

@@ -280,3 +280,16 @@ class GamePackageDataSerializer(serializers.Serializer):
 class GamePackageSerializer(serializers.Serializer):
     is_success = serializers.BooleanField(default=True)
     data = GamePackageDataSerializer(required=True)
+
+
+### Tasks #############################################################################
+
+class UpdateAppDataTaskSerializer(serializers.Serializer):
+    app_id = serializers.IntegerField(required=True, min_value=1)
+    country_code = serializers.CharField(required=True, max_length=2)
+
+
+class BulkUpdateAppDataTaskSerializer(serializers.Serializer):
+    app_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), required=True)
+    country_codes = serializers.ListField(child=serializers.CharField(max_length=2), required=True)
+

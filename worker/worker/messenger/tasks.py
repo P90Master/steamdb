@@ -147,7 +147,6 @@ class TaskManager(metaclass=TaskManagerMeta):
                 )
                 raise HandledException(error_message)
 
-            self.logger.info(f'Task "request_app_data": App data requested successfully. Completion of execution.')
             backend_package = convert_steam_app_data_response_to_backend_app_data_package(
                 request_params,
                 app_data_response,

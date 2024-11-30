@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Path
 
 from orchestrator.celery.tasks.api import request_apps_list, request_app_data, bulk_request_apps_data
 from orchestrator.celery import get_task_status
@@ -27,7 +27,9 @@ async def update_app_list() -> TaskResponse:
     return TaskResponse(task_id=task.id)
 
 
-@router.get("/{task_id: str}")
-async def task_status(task_id: str) -> TaskStatusResponse:
+@router.get("/{task_id}")
+async def task_status(
+        task_id: str = Path(..., regex=r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
+) -> TaskStatusResponse:
     status = get_task_status(task_id)
     return TaskStatusResponse(status=status)
