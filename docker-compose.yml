@@ -14,6 +14,39 @@
 
 services:
 
+  # auth ############################################################
+
+  auth:
+    build:
+      context: auth/
+    environment:
+      DEBUG: ${DEBUG}
+      SUPERUSER_NAME: ${AUTH_SUPERUSER_NAME}
+      SUPERUSER_PASSWORD: ${AUTH_SUPERUSER_PASSWORD}
+    restart: always
+    depends_on:
+      - auth-db
+    ports:
+      - "${AUTH_PORT:-8001}:8001"
+    networks:
+      - common
+      - auth
+
+  auth-db:
+    # TODO: configure resources consumption
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: ${AUTH_DB_USER}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
+      POSTGRES_DB: ${AUTH_DB_NAME}
+    ports:
+      - "${AUTH_DB_PORT:-5432}:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    networks:
+      - auth
+
   # main db ##############################################################
 
   db:
@@ -279,6 +312,7 @@ services:
 volumes:
   # FIXME: "-" instead of "_"
   mongo_data:
+  auth-db-data:
   backend-db-data:
   worker_logs:
   orchestrator-db-data:
@@ -286,6 +320,8 @@ volumes:
 
 networks:
   common:
+    driver: bridge
+  auth:
     driver: bridge
   worker:
     driver: bridge
