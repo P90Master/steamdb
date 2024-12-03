@@ -184,8 +184,7 @@ class TaskManager(metaclass=TaskManagerMeta):
         orchestrator_task_context = {
             "task_name": "update_apps_status",
             "params": {
-                "app_ids": [app_id],
-                "country_code": country_code
+                "app_ids": [app_id]
             }
         }
         self.register_task(orchestrator_task_context, message_priority=properties.priority)
@@ -221,7 +220,7 @@ class TaskManager(metaclass=TaskManagerMeta):
                             **request_params
                         )
                         if not is_success:
-                            self.logger.error(
+                            self.logger.warning(
                                 f'Task "bulk_request_for_apps_data":'
                                 f' Requesting app "{app_id}" with country code "{country_code}" failed'
                             )
