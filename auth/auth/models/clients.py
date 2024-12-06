@@ -1,36 +1,64 @@
 from typing import List
+
+import bcrypt
 from sqlalchemy.orm import Mapped, relationship
 
 from db.models import Base, str_pk
-from .permissions import Scope, Role
 from .associations import client_scope_association, client_role_association
 
 
 class Client(Base):
-    """
-    Model of client - registered application/service in the system by this auth service.
-
-    Args:
-        client_id (Mapped[str_pk]): The client's identifier.
-        client_secret (Mapped[str]): A random string that is used to authenticate the application. Stored as a hash.
-        name (Mapped[str]): The name of the client.
-        description (Mapped[str]): A description of the application/service/client and why it needs access to certain scopes.
-        roles (Mapped[List[Role]]): List of roles provided to the client.
-        personal_scopes (Mapped[List[Scope]]): List of personal scopes provided to the client.
-    """
-
-    client_id: Mapped[str_pk]
-    client_secret: Mapped[str]
+    id: Mapped[str_pk]
+    secret: Mapped[str]
     name: Mapped[str]
     description: Mapped[str]
 
-    roles: Mapped[List[Role]] = relationship(
+    access_tokens = relationship(
+        "AccessToken",
+        back_populates="client"
+    )
+    refresh_token = relationship(
+        "RefreshToken",
+        back_populates="client"
+    )
+    roles = relationship(
         "Role",
         secondary=client_role_association,
         back_populates="clients"
     )
-    personal_scopes: Mapped[List[Scope]]  = relationship(
+    personal_scopes  = relationship(
         "Scope",
         secondary=client_scope_association,
         back_populates="clients"
     )
+
+    @staticmethod
+    def hash_secret(secret: str) -> str:
+        return bcrypt.hashpw(secret.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    def check_secret(self, secret: str) -> bool:
+        return bcrypt.checkpw(secret.encode('utf-8'), self.secret.encode('utf-8'))
+
+    @classmethod
+    def register(
+            cls,
+            session,
+            secret: str,
+            name: str,
+            description: str,
+            personal_scopes,
+            roles
+    ) -> 'Client':
+        hashed_password = cls.hash_secret(secret)
+
+        new_client = cls(
+            name=name,
+            secret=hashed_password,
+            description=description
+        )
+
+        new_client.roles.extend(roles)
+        new_client.personal_scopes.extend(personal_scopes)
+        session.add(new_client)
+        session.commit()
+        return new_client
