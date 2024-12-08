@@ -1,9 +1,8 @@
-from typing import List
-
 import bcrypt
 from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models import Base, str_pk
+from auth.db import Base, str_pk
 from .associations import client_scope_association, client_role_association
 
 
@@ -40,9 +39,9 @@ class Client(Base):
         return bcrypt.checkpw(secret.encode('utf-8'), self.secret.encode('utf-8'))
 
     @classmethod
-    def register(
+    async def register(
             cls,
-            session,
+            session: AsyncSession,
             secret: str,
             name: str,
             description: str,
@@ -51,14 +50,10 @@ class Client(Base):
     ) -> 'Client':
         hashed_password = cls.hash_secret(secret)
 
-        new_client = cls(
-            name=name,
-            secret=hashed_password,
-            description=description
-        )
-
+        new_client = cls(name=name, secret=hashed_password, description=description)
         new_client.roles.extend(roles)
         new_client.personal_scopes.extend(personal_scopes)
+
         session.add(new_client)
-        session.commit()
+        await session.commit()
         return new_client

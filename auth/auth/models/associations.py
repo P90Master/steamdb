@@ -1,5 +1,13 @@
 from sqlalchemy import Column, Table, ForeignKey
-from db.models import Base
+from auth.db import Base
+
+
+__all__ = [
+    'client_scope_association',
+    'client_role_association',
+    'scope_role_association',
+    'token_scope_association'
+]
 
 
 client_scope_association = Table(
@@ -23,6 +31,6 @@ scope_role_association = Table(
 token_scope_association = Table(
     'token_scope',
     Base.metadata,
-    Column('token', ForeignKey('tokens.token'), primary_key=True),
+    Column('token', ForeignKey('accesstokens.id'), primary_key=True),
     Column('scope_id', ForeignKey('scopes.id'), primary_key=True)
 )

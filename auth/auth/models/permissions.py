@@ -1,7 +1,7 @@
 from typing import List
 from sqlalchemy.orm import Mapped, relationship
 
-from db.models import Base, int_pk
+from auth.db import Base, int_pk
 from .associations import scope_role_association
 
 

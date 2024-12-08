@@ -14,8 +14,8 @@ class AuthSettings(BaseSettings):
     DB_PORT: int = 5432
     DB_TYPE: str = 'postgresql'
     DB_DRIVER: str = 'psycopg'
-    DB_USER: str = 'user'
-    DB_PASSWORD: str = 'password'
+    DB_USER: str = 'postgres'
+    DB_PASSWORD: str = 'postgres'
     DB_NAME: str = 'auth'
     # TODO: advanced URL builder (like validator func)
     DB_URL: str = f"{DB_TYPE}+{DB_DRIVER}://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
