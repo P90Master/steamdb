@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+
 app: FastAPI = FastAPI()
 
 # without nginx redirection
@@ -11,6 +12,7 @@ app: FastAPI = FastAPI()
 
 # from routes import ...
 # app.include_router(...)
+
 
 @app.get("/")
 async def root():
