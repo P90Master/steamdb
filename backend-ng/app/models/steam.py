@@ -1,8 +1,8 @@
-from typing import Any
+from datetime import datetime, UTC
+from typing import Annotated
 
+from pydantic import Field, BaseModel
 from beanie import Document, Indexed
-
-from app.core.config import settings
 
 
 __all__ = (
@@ -10,19 +10,31 @@ __all__ = (
 )
 
 
+class AppPrice(BaseModel):
+    ts: Annotated[datetime, Field(default_factory=lambda: datetime.now(UTC))]
+    price: Annotated[float, Field(gt=0, decimal_places=2)]
+    discount: Annotated[int, Field(gt=0, lt=100, default=0)]
+
+
+class AppInCountry(BaseModel):
+    is_available: Annotated[bool, Field(default=True)]
+    currency: Annotated[str, Field(max_length=3)]
+    price_story: list[AppPrice]
+
+
 class App(Document):
     class Settings:
         name = 'apps'
 
-    id: Indexed(int)
-    name: Indexed(str)
+    id: Annotated[int, Indexed]
+    name: Annotated[str, Indexed]
     type: str  # TODO: Literal['game', 'trailer', 'dlc', ...]
     short_description: str
     is_free: bool
     developers: list[str]
     publishers: list[str]
     total_recommendations: int
-    prices: dict[str, Any]
+    prices: dict[Annotated[str, Field(max_length=2)], AppPrice]
 
     def __repr__(self) -> str:
         return f"<App {self.id}>"
