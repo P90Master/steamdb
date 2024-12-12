@@ -7,11 +7,13 @@ from beanie import Document, Indexed
 
 __all__ = (
     'App',
+    'AppInCountry',
+    'AppPrice',
 )
 
 
 class AppPrice(BaseModel):
-    ts: Annotated[datetime, Field(default_factory=lambda: datetime.now(UTC))]
+    timestamp: Annotated[datetime, Field(default_factory=lambda: datetime.now(UTC))]
     price: Annotated[float, Field(gt=0, decimal_places=2)]
     discount: Annotated[int, Field(gt=0, lt=100, default=0)]
 

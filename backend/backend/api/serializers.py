@@ -161,7 +161,7 @@ class GamePackageDataSerializer(serializers.Serializer):
     is_free = serializers.BooleanField(required=False)
     developers = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
     publishers = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
-    country_code = serializers.CharField(required=True, max_length=3)
+    country_code = serializers.CharField(required=True, max_length=2)
     is_available = serializers.BooleanField(default=True)
     currency = serializers.CharField(required=False, max_length=3, allow_null=True)
     discount = serializers.IntegerField(min_value=0.0, max_value=100, default=0)
