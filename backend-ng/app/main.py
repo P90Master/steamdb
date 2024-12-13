@@ -37,3 +37,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+from app.api import api_router
+
+app.include_router(api_router)

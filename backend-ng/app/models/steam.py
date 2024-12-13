@@ -1,4 +1,5 @@
 from datetime import datetime, UTC
+from decimal import Decimal
 from typing import Annotated
 
 from pydantic import Field, BaseModel
@@ -14,8 +15,8 @@ __all__ = (
 
 class AppPrice(BaseModel):
     timestamp: Annotated[datetime, Field(default_factory=lambda: datetime.now(UTC))]
-    price: Annotated[float, Field(gt=0, decimal_places=2)]
-    discount: Annotated[int, Field(gt=0, lt=100, default=0)]
+    price: Annotated[float, Field(gt=-0.01)]
+    discount: Annotated[int, Field(gt=-1, lt=100, default=0)]
 
 
 class AppInCountry(BaseModel):
@@ -36,7 +37,7 @@ class App(Document):
     developers: list[str]
     publishers: list[str]
     total_recommendations: int
-    prices: dict[Annotated[str, Field(max_length=2)], AppPrice]
+    prices: dict[Annotated[str, Field(max_length=2)], AppInCountry]
 
     def __repr__(self) -> str:
         return f"<App {self.id}>"
