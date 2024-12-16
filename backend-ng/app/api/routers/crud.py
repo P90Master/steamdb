@@ -1,12 +1,17 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Iterable
 
 from fastapi import APIRouter, HTTPException
 from pydantic import Field
 
 from app.models import App
-from app.api.schemas import AppSchema, AppEditingSchema
-
+from app.api.schemas import (
+    AppSchema,
+    AppEditingSchema,
+    AppsListElementSchema,
+    AppInCountryCompactSchema,
+    AppInCountrySchema
+)
 
 router = APIRouter(prefix='/apps')
 
@@ -18,9 +23,50 @@ async def raise_if_app_already_exists(app_id: int):
         raise HTTPException(status_code=409, detail=f'App with id {app_id} already exists')
 
 
-@router.get('', response_model=list[AppSchema])
+def compress_price_collection(price_collection: AppInCountrySchema) -> AppInCountryCompactSchema:
+    compressed_price_collection = AppInCountryCompactSchema(
+        currency=price_collection.currency,
+        is_available=price_collection.is_available,
+    )
+
+    if price_collection.price_story:
+        compressed_price_collection.price = price_collection.price_story[0].price
+        compressed_price_collection.discount = price_collection.price_story[0].discount
+        compressed_price_collection.last_updated = price_collection.price_story[0].timestamp
+
+    return compressed_price_collection
+
+
+def convert_apps_list_to_compact_format(apps_list: Iterable[App]) -> list[AppsListElementSchema]:
+    compact_apps = []
+
+    for app in apps_list:
+        compact_price_collections = {}
+
+        for country_code, price_collection in app.prices.items():
+            compact_price_collections[country_code] = compress_price_collection(price_collection)
+
+        compact_apps.append(
+            AppsListElementSchema(
+                id=app.id,
+                name=app.name,
+                type=app.type,
+                short_description=app.short_description,
+                is_free=app.is_free,
+                developers=app.developers,
+                publishers=app.publishers,
+                total_recommendations=app.total_recommendations,
+                prices=compact_price_collections
+            )
+        )
+
+    return compact_apps
+
+
+@router.get('', response_model=list[AppsListElementSchema])
 async def list_apps():
-    return await App.find().to_list()
+    apps = await App.find().to_list()
+    return convert_apps_list_to_compact_format(apps)
 
 
 @router.get('/{app_id}', response_model=AppSchema)

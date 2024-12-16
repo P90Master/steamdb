@@ -11,6 +11,8 @@ __all__ = (
     'AppEditingSchema',
     'AppPriceSchema',
     'AppInCountrySchema',
+    'AppsListElementSchema',
+    'AppInCountryCompactSchema',
 )
 
 
@@ -42,6 +44,14 @@ class AppInCountrySchema(BaseModel):
     price_story: Annotated[list[AppPriceSchema] | None, Field(default_factory=list)]
 
 
+class AppInCountryCompactSchema(BaseModel):
+    is_available: Annotated[bool, Field(default=True)]
+    currency: Annotated[str | None, Field(max_length=3)] = None
+    price: Annotated[float | None, Field(gt=-0.01)] = None
+    discount: Annotated[int | None, Field(gt=-1, lt=100)] = None
+    last_updated: datetime | None = None
+
+
 class AppSchema(BaseModel):
     id: int
     name: str | None = None
@@ -52,6 +62,18 @@ class AppSchema(BaseModel):
     publishers: list[str] | None = None
     total_recommendations: int | None = None
     prices: dict[Annotated[str, Field(max_length=2)], AppInCountrySchema] | None = None
+
+
+class AppsListElementSchema(BaseModel):
+    id: int
+    name: str | None = None
+    type: str | None = None
+    short_description: str | None = None
+    is_free: bool | None = None
+    developers: list[str] | None = None
+    publishers: list[str] | None = None
+    total_recommendations: int | None = None
+    prices: dict[Annotated[str, Field(max_length=2)], AppInCountryCompactSchema] | None = None
 
 
 class AppEditingSchema(BaseModel):
