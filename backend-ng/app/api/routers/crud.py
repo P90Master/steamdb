@@ -49,8 +49,8 @@ async def create_app(app_data: AppSchema):
     return await App(**app_data.model_dump()).insert()  # type: ignore
 
 
-@router.put('/{app_id}', response_model=AppSchema)
-async def put_in_app(app_id: Annotated[int, Field(gt=0)], app_data: AppEditingSchema):
+@router.patch('/{app_id}', response_model=AppSchema)
+async def patch_app(app_id: Annotated[int, Field(gt=0)], app_data: AppEditingSchema):
     app = await App.find_one(App.id == app_id)
 
     if app is None:
@@ -93,13 +93,11 @@ async def put_in_app(app_id: Annotated[int, Field(gt=0)], app_data: AppEditingSc
     app.developers = app_data.developers or app.developers
     app.publishers = app_data.publishers or app.publishers
     app.total_recommendations = app_data.total_recommendations or app.total_recommendations
-    logging.critical(app)
-
-    return await app.update({'$set': app.model_dump(exclude_unset=True)})
+    return await app.save()
 
 
-@router.patch('/{app_id}', response_model=AppSchema)
-async def patch_app(app_id: Annotated[int, Field(gt=0)], app_data: AppEditingSchema):
+@router.put('/{app_id}', response_model=AppSchema)
+async def put_in_app(app_id: Annotated[int, Field(gt=0)], app_data: AppEditingSchema):
     app = await App.find_one(App.id == app_id)
 
     if app is None:
@@ -109,6 +107,14 @@ async def patch_app(app_id: Annotated[int, Field(gt=0)], app_data: AppEditingSch
         return await app.update({'$set': app_data.model_dump(exclude_unset=True)})
 
     for country_code, price_collection in app_data.prices.items():
+        if not (existed_price_collection := app.prices.get(country_code)):
+            app.prices[country_code] = price_collection
+            continue
+
+        existed_price_collection.is_available = price_collection.is_available \
+            if price_collection.is_available != existed_price_collection.is_available else existed_price_collection.is_available
+        existed_price_collection.currency = price_collection.currency or existed_price_collection.currency
+
         if not (price_story := price_collection.price_story):
             continue
 
@@ -117,5 +123,14 @@ async def patch_app(app_id: Annotated[int, Field(gt=0)], app_data: AppEditingSch
                     if isinstance(story_point.timestamp, str) else story_point.timestamp,
             reverse=True
         )
+        existed_price_collection.price_story = price_story
 
-    return await app.update({'$set': app_data.model_dump(exclude_unset=True)})
+    app.name = app_data.name or app.name
+    app.type = app_data.type or app.type
+    app.short_description = app_data.short_description or app.short_description
+    app.is_free = app_data.is_free if app_data.is_free != app.is_free else app.is_free
+    app.developers = app_data.developers or app.developers
+    app.publishers = app_data.publishers or app.publishers
+    app.total_recommendations = app_data.total_recommendations or app.total_recommendations
+
+    return await app.save()
