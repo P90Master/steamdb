@@ -208,6 +208,7 @@ class GamePackageDataSerializer(serializers.Serializer):
             is_free=validated_data.get('is_free'),
             developers=validated_data.get('developers'),
             publishers=validated_data.get('publishers'),
+            total_recommendations=validated_data.get('total_recommendations'),
             prices={
                 validated_data.get('country_code'): new_price_collection
             }

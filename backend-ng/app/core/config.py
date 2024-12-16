@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     API_VERSION: str = 'v1'
     SECRET_KEY: str = secrets.token_urlsafe(32)
+    TIME_ZONE: str = 'Europe/Moscow'
+    USE_TZ: bool = True
 
     FRONTEND_HOST: str = 'http://localhost:3000'
     BACKEND_CORS_ORIGINS: Annotated[

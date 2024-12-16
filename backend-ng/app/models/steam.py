@@ -1,9 +1,10 @@
 from datetime import datetime, UTC
-from decimal import Decimal
 from typing import Annotated
 
-from pydantic import Field, BaseModel
-from beanie import Document, Indexed
+from pydantic import Field, BaseModel, field_validator
+from beanie import Indexed
+
+from app.utils import timezone
 
 
 __all__ = (
@@ -12,11 +13,21 @@ __all__ = (
     'AppPrice',
 )
 
+from app.models.utils import BaseDocument
+
 
 class AppPrice(BaseModel):
-    timestamp: Annotated[datetime, Field(default_factory=lambda: datetime.now(UTC))]
+    timestamp: datetime
     price: Annotated[float, Field(gt=-0.01)]
     discount: Annotated[int, Field(gt=-1, lt=100, default=0)]
+
+    @field_validator('timestamp', mode='after')
+    @classmethod
+    def convert_utc_to_local(cls, v):
+        if v.tzinfo is None or v.tzinfo.utcoffset(v) == UTC.utcoffset(v):
+            v = v.astimezone(timezone)
+
+        return v
 
 
 class AppInCountry(BaseModel):
@@ -25,19 +36,19 @@ class AppInCountry(BaseModel):
     price_story: list[AppPrice]
 
 
-class App(Document):
+class App(BaseDocument):
     class Settings:
         name = 'apps'
 
     id: Annotated[int, Indexed]
     name: Annotated[str, Indexed]
-    type: str  # TODO: Literal['game', 'trailer', 'dlc', ...]
-    short_description: str
+    type: str | None = None  # TODO: Literal['game', 'trailer', 'dlc', ...]
+    short_description: str | None = None
     is_free: bool
-    developers: list[str]
-    publishers: list[str]
-    total_recommendations: int
-    prices: dict[Annotated[str, Field(max_length=2)], AppInCountry]
+    developers: list[str] | None = None
+    publishers: list[str] | None = None
+    total_recommendations: int | None = None
+    prices: dict[Annotated[str, Field(max_length=2)], AppInCountry] | None = None
 
     def __repr__(self) -> str:
         return f"<App {self.id}>"
