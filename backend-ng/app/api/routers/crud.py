@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Iterable
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import Field
 
 from app.models import App
@@ -64,9 +64,16 @@ def convert_apps_list_to_compact_format(apps_list: Iterable[App]) -> list[AppsLi
 
 
 @router.get('', response_model=list[AppsListElementSchema])
-async def list_apps():
+async def list_apps(page: int = Query(0, ge=0), size: int = Query(10, ge=1, le=100)):
+    offset = page * size
     apps = await App.find().to_list()
-    return convert_apps_list_to_compact_format(apps)
+    compact_apps = convert_apps_list_to_compact_format(apps)
+    return {
+        "results": compact_apps[offset:offset + size],
+        "page": page,
+        "size": size,
+        "total": len(compact_apps)
+    }
 
 
 @router.get('/{app_id}', response_model=AppSchema)
