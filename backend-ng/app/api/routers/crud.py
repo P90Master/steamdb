@@ -4,6 +4,7 @@ from typing import Annotated, Iterable
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import Field
 
+
 from app.models import App
 from app.api.schemas import (
     AppSchema,
