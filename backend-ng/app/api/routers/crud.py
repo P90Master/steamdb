@@ -1,4 +1,5 @@
 from datetime import datetime
+from locale import currency
 from typing import Annotated, Iterable
 
 from fastapi import APIRouter, HTTPException, Query
@@ -10,7 +11,11 @@ from app.api.schemas import (
     AppEditingSchema,
     AppsListElementSchema,
     AppInCountryCompactSchema,
-    AppInCountrySchema
+    AppInCountrySchema,
+    PaginatedAppListSchema,
+    PaginatedAppPriceSchema,
+    AppWithPaginatedPricesSchema,
+    AppInCountryWithPaginatedPricesSchema,
 )
 
 router = APIRouter(prefix='/apps')
@@ -63,27 +68,55 @@ def convert_apps_list_to_compact_format(apps_list: Iterable[App]) -> list[AppsLi
     return compact_apps
 
 
-@router.get('', response_model=list[AppsListElementSchema])
-async def list_apps(page: int = Query(0, ge=0), size: int = Query(10, ge=1, le=100)):
-    offset = page * size
+def paginate_app_prices(app: App, page: int, size: int) -> AppWithPaginatedPricesSchema:
+    if app.prices is None:
+        return AppWithPaginatedPricesSchema(**app.model_dump())
+
+    paginated_price_collection = {}
+
+    for country_code, price_collection in app.prices.items():
+        offset = (page - 1) * size
+        prices = price_collection.price_story
+        paginated_price_collection[country_code] = AppInCountryWithPaginatedPricesSchema(
+            is_available=price_collection.is_available,
+            currency=price_collection.currency,
+            price_story=PaginatedAppPriceSchema(
+                results=prices[offset:offset + size],
+                page=page,
+                size=size,
+                total=len(prices)
+            )
+        )
+
+    paginated_app_dump = app.model_dump()
+    paginated_app_dump['prices'] = paginated_price_collection
+    return AppWithPaginatedPricesSchema(**paginated_app_dump)
+
+
+@router.get('', response_model=PaginatedAppListSchema)
+async def list_apps(page: int = Query(1, ge=0), size: int = Query(10, ge=1, le=100)):
+    offset = (page - 1) * size
     apps = await App.find().to_list()
     compact_apps = convert_apps_list_to_compact_format(apps)
-    return {
-        "results": compact_apps[offset:offset + size],
-        "page": page,
-        "size": size,
-        "total": len(compact_apps)
-    }
+    return PaginatedAppListSchema(
+        results=compact_apps[offset:offset + size],
+        page=page,
+        size=size,
+        total=len(compact_apps)
+    )
 
 
-@router.get('/{app_id}', response_model=AppSchema)
-async def get_app(app_id: Annotated[int, Field(gt=0)]):
+@router.get('/{app_id}', response_model=AppWithPaginatedPricesSchema)
+async def get_app(app_id: Annotated[int, Field(gt=0)], page: int = Query(1, ge=0), size: int = Query(10, ge=1, le=100)):
+    # FIXME: common pagination for all countries
+    # TODO: get concrete country param (by default - all)
+
     app = await App.find_one(App.id == app_id)
 
     if app is None:
         raise HTTPException(status_code=404, detail=f'App with id {app_id} not found')
 
-    return app
+    return paginate_app_prices(app, page, size)
 
 
 @router.delete('/{app_id}', status_code=204)

@@ -3,6 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.models import AppPrice
 from app.utils import timezone
 
 
@@ -13,6 +14,10 @@ __all__ = (
     'AppInCountrySchema',
     'AppsListElementSchema',
     'AppInCountryCompactSchema',
+    'PaginatedAppListSchema',
+    'AppWithPaginatedPricesSchema',
+    'AppInCountryWithPaginatedPricesSchema',
+    'PaginatedAppPriceSchema',
 )
 
 
@@ -44,6 +49,19 @@ class AppInCountrySchema(BaseModel):
     price_story: Annotated[list[AppPriceSchema] | None, Field(default_factory=list)]
 
 
+class PaginatedAppPriceSchema(BaseModel):
+    results: list[AppPriceSchema | AppPrice]
+    page: int
+    size: int
+    total: int
+
+
+class AppInCountryWithPaginatedPricesSchema(BaseModel):
+    is_available: Annotated[bool, Field(default=True)]
+    currency: Annotated[str | None, Field(max_length=3)] = None
+    price_story: Annotated[PaginatedAppPriceSchema | None, Field(default_factory=list)]
+
+
 class AppInCountryCompactSchema(BaseModel):
     is_available: Annotated[bool, Field(default=True)]
     currency: Annotated[str | None, Field(max_length=3)] = None
@@ -64,6 +82,18 @@ class AppSchema(BaseModel):
     prices: dict[Annotated[str, Field(max_length=2)], AppInCountrySchema] | None = None
 
 
+class AppWithPaginatedPricesSchema(BaseModel):
+    id: int
+    name: str | None = None
+    type: str | None = None
+    short_description: str | None = None
+    is_free: bool | None = None
+    developers: list[str] | None = None
+    publishers: list[str] | None = None
+    total_recommendations: int | None = None
+    prices: dict[Annotated[str, Field(max_length=2)], AppInCountryWithPaginatedPricesSchema] | None = None
+
+
 class AppsListElementSchema(BaseModel):
     id: int
     name: str | None = None
@@ -74,6 +104,13 @@ class AppsListElementSchema(BaseModel):
     publishers: list[str] | None = None
     total_recommendations: int | None = None
     prices: dict[Annotated[str, Field(max_length=2)], AppInCountryCompactSchema] | None = None
+
+
+class PaginatedAppListSchema(BaseModel):
+    results: list[AppsListElementSchema]
+    page: int
+    size: int
+    total: int
 
 
 class AppEditingSchema(BaseModel):
