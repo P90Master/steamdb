@@ -7,6 +7,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.models import DOCUMENTS
+from app.middlewares import ReplaceQueryParamsMiddleware
 
 
 @asynccontextmanager
@@ -37,6 +38,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ReplaceQueryParamsMiddleware)  # type: ignore
 
 
 from app.api import api_router

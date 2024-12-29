@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = secrets.token_urlsafe(32)
     TIME_ZONE: str = 'Europe/Moscow'
     USE_TZ: bool = True
+    MAIN_COUNTRY: str = 'US'
 
     FRONTEND_HOST: str = 'http://localhost:3000'
     BACKEND_CORS_ORIGINS: Annotated[

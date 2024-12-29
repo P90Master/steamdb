@@ -1,8 +1,8 @@
 from datetime import datetime
-from locale import currency
 from typing import Annotated, Iterable
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi_filter import FilterDepends
 from pydantic import Field
 
 from app.models import App
@@ -16,6 +16,7 @@ from app.api.schemas import (
     PaginatedAppPriceSchema,
     AppWithPaginatedPricesSchema,
     AppInCountryWithPaginatedPricesSchema,
+    AppFilter,
 )
 
 router = APIRouter(prefix='/apps')
@@ -94,9 +95,18 @@ def paginate_app_prices(app: App, page: int, size: int) -> AppWithPaginatedPrice
 
 
 @router.get('', response_model=PaginatedAppListSchema)
-async def list_apps(page: int = Query(1, ge=0), size: int = Query(10, ge=1, le=100)):
+async def list_apps(
+        page: int = Query(1, ge=0),
+        size: int = Query(10, ge=1, le=100),
+        filters: AppFilter = FilterDepends(AppFilter)
+) -> PaginatedAppListSchema:
+    apps_query = App.find()
+
+    filtered_apps_query = filters.filter(apps_query)
+    sorted_apps_query = filters.sort(filtered_apps_query)
+    apps = await sorted_apps_query.to_list()
+
     offset = (page - 1) * size
-    apps = await App.find().to_list()
     compact_apps = convert_apps_list_to_compact_format(apps)
     return PaginatedAppListSchema(
         results=compact_apps[offset:offset + size],
