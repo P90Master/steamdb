@@ -1,11 +1,14 @@
 from contextlib import asynccontextmanager
 
+import redis.asyncio as redis
 from fastapi import FastAPI
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
+from redis.asyncio import ConnectionPool
 from starlette.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.utils.cache import CacheManager, RedisBackend
 from app.models import DOCUMENTS
 from app.middlewares import ReplaceQueryParamsMiddleware
 
@@ -15,9 +18,14 @@ async def lifespan(app_: FastAPI):
     app_.db_client = getattr(AsyncIOMotorClient(settings.MONGO_URL), settings.MONGO_DB)
     await init_beanie(app_.db_client, document_models=DOCUMENTS)
 
+    cache_pool = ConnectionPool.from_url(url=settings.CACHE_URL)
+    redis_instance = redis.Redis(connection_pool=cache_pool)
+    CacheManager.init(RedisBackend(redis_instance), prefix=settings.CACHE_PREFIX, expire=settings.CACHE_TIMEOUT)
+
     yield
 
     app_.db_client.close()
+    await cache_pool.disconnect()
 
 
 app = FastAPI(

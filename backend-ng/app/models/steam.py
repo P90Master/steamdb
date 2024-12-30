@@ -2,9 +2,10 @@ from datetime import datetime, UTC
 from typing import Annotated
 
 from pydantic import Field, BaseModel, field_validator
-from beanie import Indexed
+from beanie import Indexed, after_event, Replace, Update, SaveChanges, Delete
 
 from app.utils import timezone
+from app.utils.cache import CacheManager
 
 
 __all__ = (
@@ -58,3 +59,8 @@ class App(BaseDocument):
 
     def __eq__(self, other: object) -> bool:
         return self.id == other.id if isinstance(other, App) else False
+
+    @after_event(Replace, Update, SaveChanges, Delete)
+    async def reset_cache(self):
+        cache_key = f'app_{self.id}'
+        await CacheManager.clear(cache_key)

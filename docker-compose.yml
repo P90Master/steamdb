@@ -94,9 +94,15 @@ services:
       MONGO_USER: ${MONGO_USER}
       MONGO_PASSWORD: ${MONGO_PASSWORD}
       MONGO_DB: ${MONGO_DB}
+
+      CACHE_PROTOCOL: ${BACKEND_CACHE_PROTOCOL}
+      CACHE_HOST: ${BACKEND_CACHE_HOST}
+      CACHE_PORT: ${BACKEND_CACHE_PORT}
+      CACHE_TIMEOUT: ${BACKEND_CACHE_TIMEOUT}
     restart: always
     depends_on:
       - db
+      - backend-cache
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:
@@ -158,14 +164,14 @@ services:
 #      - backend-db-data:/var/lib/postgresql/data
 #    networks:
 #      - backend
-#
-#  backend-cache:
-#    image: "redis:alpine"
-#    restart: always
-#    expose:
-#      - "${BACKEND_CACHE_PORT:-6379}"
-#    networks:
-#      - backend
+
+  backend-cache:
+    image: "redis:alpine"
+    restart: always
+    expose:
+      - "${BACKEND_CACHE_PORT:-6379}"
+    networks:
+      - backend
 
   # orchestrator & workers cluster ###################################
 

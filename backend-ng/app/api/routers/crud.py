@@ -6,6 +6,7 @@ from fastapi_filter import FilterDepends
 from pydantic import Field
 
 from app.models import App
+from app.utils.cache import CacheManager
 from app.api.schemas import (
     AppSchema,
     AppEditingSchema,
@@ -100,6 +101,8 @@ async def list_apps(
         size: int = Query(10, ge=1, le=100),
         filters: AppFilter = FilterDepends(AppFilter)
 ) -> PaginatedAppListSchema:
+    # TODO: progressive cache strategy: firstly x2 size of sample, then additional x2, then x4, x8, ...
+    # first caching for 1 and 2 pages, second for 3 and 4 (if needed), third for 5, 6, 7 and 8 pages, etc.
     apps_query = App.find()
 
     filtered_apps_query = filters.filter(apps_query)
@@ -121,11 +124,19 @@ async def get_app(app_id: Annotated[int, Field(gt=0)], page: int = Query(1, ge=0
     # FIXME: common pagination for all countries
     # TODO: get concrete country param (by default - all)
 
+    cache_key = f'app_{app_id}'
+    cached_app_data = await CacheManager.get(cache_key)
+
+    if cached_app_data:
+        app = App(**cached_app_data)
+        return paginate_app_prices(app, page, size)
+
     app = await App.find_one(App.id == app_id)
 
     if app is None:
         raise HTTPException(status_code=404, detail=f'App with id {app_id} not found')
 
+    await CacheManager.save(app.model_dump_json(), cache_key)
     return paginate_app_prices(app, page, size)
 
 

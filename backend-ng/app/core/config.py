@@ -8,6 +8,7 @@ from pydantic import (
     computed_field,
     model_validator,
     MongoDsn,
+    RedisDsn,
 )
 
 from pydantic_settings import BaseSettings
@@ -59,6 +60,28 @@ class Settings(BaseSettings):
             port=self.MONGO_PORT,
             username=self.MONGO_USER,
             password=self.MONGO_PASSWORD
+        ).unicode_string()
+
+    CACHE_TIMEOUT: int = 60 * 20
+    CACHE_PREFIX: str = 'backend-cache'
+    CACHE_HOST: str = 'localhost'
+    CACHE_PORT: int = 6379
+    CACHE_PROTOCOL: str = 'redis'
+
+    @computed_field
+    @property
+    def CACHE_URL(self) -> str:  # type: ignore
+        if self.CACHE_PROTOCOL == 'redis':
+            return RedisDsn.build(
+                scheme='redis',
+                host=self.CACHE_HOST,
+                port=self.CACHE_PORT,
+            ).unicode_string()
+
+        return AnyUrl.build(
+            scheme=self.CACHE_PROTOCOL,
+            host=self.CACHE_HOST,
+            port=self.CACHE_PORT,
         ).unicode_string()
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
