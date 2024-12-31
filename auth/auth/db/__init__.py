@@ -1,2 +1,2 @@
 from .models import *
-from .connections import Session
+from .connections import Session, engine

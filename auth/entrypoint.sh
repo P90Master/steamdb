@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# alembic -c auth/db/alembic.ini upgrade head
+alembic upgrade head
 
 # TODO: production-ready configuration & get params from .env
 uvicorn auth.main:app --host 0.0.0.0 --port 8001 \

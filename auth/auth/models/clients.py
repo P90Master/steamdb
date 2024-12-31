@@ -9,8 +9,8 @@ from .associations import client_scope_association, client_role_association
 class Client(Base):
     id: Mapped[str_pk]
     secret: Mapped[str]
-    name: Mapped[str]
-    description: Mapped[str]
+    name: Mapped[str] = None
+    description: Mapped[str] = None
 
     access_tokens = relationship(
         "AccessToken",
@@ -57,3 +57,5 @@ class Client(Base):
         session.add(new_client)
         await session.commit()
         return new_client
+
+    # TODO: method for retrieving all client's scopes (from roles and personal scopes)

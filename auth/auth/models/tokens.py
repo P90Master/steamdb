@@ -6,7 +6,7 @@ from sqlalchemy import DateTime, func, select, update, text, ForeignKey
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth.config import settings
+from auth.core.config import settings
 from auth.db import Base, int_pk, str_unique
 from auth.models.associations import token_scope_association
 from auth.models.permissions import Scope

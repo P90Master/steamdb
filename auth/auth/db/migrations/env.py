@@ -12,7 +12,7 @@ from alembic import context
 
 sys.path.insert(0, dirname(dirname(dirname(dirname(abspath(__file__))))))
 
-from auth.config import settings
+from auth.core.config import settings
 from auth.db import Base
 from auth.models.tokens import AccessToken, RefreshToken
 from auth.models.clients import Client

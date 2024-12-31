@@ -1,4 +1,17 @@
 from fastapi import FastAPI
+from starlette_admin.contrib.sqla import Admin, ModelView
+
+
+from auth.models import (
+    Client,
+    Scope,
+    AccessToken,
+    RefreshToken,
+    User,
+    Role,
+    ClientView,
+)
+from auth.db import engine
 
 
 app: FastAPI = FastAPI()
@@ -12,6 +25,15 @@ app: FastAPI = FastAPI()
 
 # from routes import ...
 # app.include_router(...)
+
+admin = Admin(engine)
+admin.add_view(ModelView(User))
+admin.add_view(ClientView(Client))
+admin.add_view(ModelView(Role))
+admin.add_view(ModelView(Scope))
+admin.add_view(ModelView(AccessToken))
+admin.add_view(ModelView(RefreshToken))
+admin.mount_to(app)
 
 
 @app.get("/")

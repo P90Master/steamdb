@@ -1,8 +1,8 @@
-"""initial revision
+"""Initial revision
 
-Revision ID: 9d2f17135742
-Revises: 
-Create Date: 2024-12-07 23:59:14.471631
+Revision ID: 78e813154635
+Revises:
+Create Date: 2024-12-31 19:06:45.490352
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '9d2f17135742'
+revision: str = '78e813154635'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -39,6 +39,13 @@ def upgrade() -> None:
     sa.Column('description', sa.String(), nullable=False),
     sa.Column('action', sa.String(), nullable=False),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('users',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('username', sa.String(), nullable=False),
+    sa.Column('password', sa.String(), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('username')
     )
     op.create_table('accesstokens',
     sa.Column('expires_at', sa.DateTime(timezone=True), server_default=sa.text("now() + INTERVAL '3600 seconds'"), nullable=False),
@@ -99,6 +106,7 @@ def downgrade() -> None:
     op.drop_table('client_scope')
     op.drop_table('client_role')
     op.drop_table('accesstokens')
+    op.drop_table('users')
     op.drop_table('scopes')
     op.drop_table('roles')
     op.drop_table('clients')
