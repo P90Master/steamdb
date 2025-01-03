@@ -1,13 +1,19 @@
+import asyncio
+
 import bcrypt
+from sqlalchemy import select
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth.db import Base, str_pk
+from auth.utils import hash_secret
+from auth.db import Base, int_pk, str_unique
+from .permissions import Role, Scope
 from .associations import client_scope_association, client_role_association
 
 
 class Client(Base):
-    id: Mapped[str_pk]
+    pk: Mapped[int_pk]
+    id: Mapped[str_unique]
     secret: Mapped[str]
     name: Mapped[str] = None
     description: Mapped[str] = None
@@ -31,10 +37,6 @@ class Client(Base):
         back_populates="clients"
     )
 
-    @staticmethod
-    def hash_secret(secret: str) -> str:
-        return bcrypt.hashpw(secret.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
     def check_secret(self, secret: str) -> bool:
         return bcrypt.checkpw(secret.encode('utf-8'), self.secret.encode('utf-8'))
 
@@ -42,20 +44,38 @@ class Client(Base):
     async def register(
             cls,
             session: AsyncSession,
+            id_: str,
             secret: str,
             name: str,
             description: str,
-            personal_scopes,
-            roles
+            personal_scopes: list[str],
+            roles: list[str]
     ) -> 'Client':
-        hashed_password = cls.hash_secret(secret)
+        hashed_password = hash_secret(secret)
 
-        new_client = cls(name=name, secret=hashed_password, description=description)
-        new_client.roles.extend(roles)
-        new_client.personal_scopes.extend(personal_scopes)
+        new_client = cls(id=id_, name=name, secret=hashed_password, description=description)
+
+        async def get_roles() -> list:
+            coros = (
+                session.execute(select(Role).where(Role.id == int(role_id))) for role_id in roles
+            )
+            results = await asyncio.gather(*coros)
+            return [result.scalars().first() for result in results]
+
+        async def get_scopes() -> list:
+            coros = (
+                session.execute(select(Scope).where(Scope.id == int(scope_id))) for scope_id in personal_scopes
+            )
+            results = await asyncio.gather(*coros)
+            return [result.scalars().first() for result in results]
+
+        roles_obj, scopes_obj = await asyncio.gather(get_roles(), get_scopes())
+        new_client.roles.extend(roles_obj)
+        new_client.personal_scopes.extend(scopes_obj)
 
         session.add(new_client)
         await session.commit()
+        await session.refresh(new_client)
         return new_client
 
     # TODO: method for retrieving all client's scopes (from roles and personal scopes)

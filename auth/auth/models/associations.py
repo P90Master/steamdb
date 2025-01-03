@@ -13,13 +13,13 @@ __all__ = [
 client_scope_association = Table(
     'client_scope',
     Base.metadata,
-    Column('client_id', ForeignKey('clients.id'), primary_key=True),
+    Column('client_id', ForeignKey('clients.pk'), primary_key=True),
     Column('scope_id', ForeignKey('scopes.id'), primary_key=True)
 )
 client_role_association = Table(
     'client_role',
     Base.metadata,
-    Column('client_id', ForeignKey('clients.id'), primary_key=True),
+    Column('client_id', ForeignKey('clients.pk'), primary_key=True),
     Column('role_id', ForeignKey('roles.id'), primary_key=True)
 )
 scope_role_association = Table(
