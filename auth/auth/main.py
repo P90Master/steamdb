@@ -10,6 +10,7 @@ from auth.models import (
     User,
     Role,
     ClientView,
+    UserAdmin,
 )
 from auth.db import engine
 
@@ -27,7 +28,7 @@ app: FastAPI = FastAPI()
 # app.include_router(...)
 
 admin = Admin(engine)
-admin.add_view(ModelView(User))
+admin.add_view(UserAdmin(User))
 admin.add_view(ClientView(Client))
 admin.add_view(ModelView(Role))
 admin.add_view(ModelView(Scope))
