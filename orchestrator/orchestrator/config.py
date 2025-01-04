@@ -105,7 +105,7 @@ class OrchestratorSettings(BaseSettings):
     CELERY_BROKER_HOST: str = "orchestrator-task-broker"
     CELERY_BROKER_PORT: int = 6379
     CELERY_BROKER_PROTOCOL: str = "redis"
-    # TODO: advanced URL builder (like validator func)
+    # TODO: advanced URL builder (like DSN)
     CELERY_BROKER_URL: str = f"{CELERY_BROKER_PROTOCOL}://{CELERY_BROKER_HOST}:{CELERY_BROKER_PORT}/0"
     CELERY_BROKER: str = CELERY_BROKER_URL
     CELERY_BACKEND: str = CELERY_BROKER_URL

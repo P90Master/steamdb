@@ -28,9 +28,16 @@ services:
       DB_USER: ${AUTH_DB_USER}
       DB_PASSWORD: ${AUTH_DB_PASSWORD}
       DB_NAME: ${AUTH_DB_NAME}
+      CELERY_NAME: ${AUTH_CELERY_NAME}
+      CELERY_BROKER_HOST: ${AUTH_CELERY_BROKER_HOST}
+      CELERY_BROKER_PORT: ${AUTH_CELERY_BROKER_PORT}
+      CELERY_BROKER_PROTOCOL: ${AUTH_CELERY_BROKER_PROTOCOL}
+      CELERY_TASK_TIME_LIMIT: ${AUTH_CELERY_TASK_TIME_LIMIT}
+      CELERY_SCHEDULE_CLEAN_EXPIRED_TOKENS: ${AUTH_CELERY_SCHEDULE_CLEAN_EXPIRED_TOKENS}
     restart: always
     depends_on:
       - auth-db
+      - auth-task-broker
     ports:
       - "${AUTH_PORT:-8001}:8001"
     networks:
@@ -49,6 +56,13 @@ services:
       - "${AUTH_DB_PORT:-5432}:5432"
     volumes:
       - auth-db-data:/var/lib/postgresql/data
+    networks:
+      - auth
+
+  auth-task-broker:
+    image: redis:latest
+    expose:
+      - "6379"
     networks:
       - auth
 

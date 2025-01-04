@@ -1,6 +1,6 @@
 from datetime import datetime
 from secrets import token_hex
-from typing import Annotated, List, Sequence
+from typing import Annotated, List
 
 from sqlalchemy import DateTime, func, select, update, text, ForeignKey
 from sqlalchemy.orm import Mapped, relationship, mapped_column
@@ -49,19 +49,12 @@ class AccessToken(BaseToken):
     expires_at: Mapped[access_token_expiring]
 
     client = relationship("Client", back_populates="access_tokens")
-    scopes = relationship("Scope", secondary=token_scope_association, back_populates="tokens")
-
-    @classmethod
-    async def get_inactive_tokens(cls, session: AsyncSession) -> Sequence['AccessToken']:
-        sample = await session.execute(select(cls).where(cls.is_active == False))
-        return sample.scalars().all()
-
-    @classmethod
-    async def get_expired_active_tokens(cls, session: AsyncSession) -> Sequence['AccessToken']:
-        sample = await session.execute(
-            select(cls).where(cls.expires_at < func.now(), cls.is_active == True)
-        )
-        return sample.scalars().all()
+    scopes = relationship(
+        "Scope",
+        secondary=token_scope_association,
+        back_populates="tokens",
+        cascade="all, delete"
+    )
 
     @classmethod
     async def create_token(cls, session: AsyncSession, client_id: str, scopes: List[Scope]) -> 'AccessToken':
@@ -85,16 +78,6 @@ class RefreshToken(BaseToken):
     expires_at: Mapped[refresh_token_expiring]
 
     client = relationship("Client", back_populates="refresh_token")
-
-    @classmethod
-    async def get_inactive_tokens(cls, session: AsyncSession) -> Sequence['RefreshToken']:
-        sample = await session.execute(select(cls).where(cls.is_active == False))
-        return sample.scalars().all()
-
-    @classmethod
-    async def get_expired_active_tokens(cls, session: AsyncSession) -> Sequence['RefreshToken']:
-        sample = await session.execute(select(cls).where(cls.expires_at < func.now(), cls.is_active == True))
-        return sample.scalars().all()
 
     @classmethod
     async def get_or_create_token(cls, session: AsyncSession, client_id: str) -> 'RefreshToken':
@@ -128,16 +111,6 @@ class AdminToken(Base):
     expires_at: Mapped[admin_token_expiring]
 
     user = relationship("User", back_populates="tokens")
-
-    @classmethod
-    async def get_inactive_tokens(cls, session: AsyncSession) -> Sequence['AdminToken']:
-        sample = await session.execute(select(cls).where(cls.is_active == False))
-        return sample.scalars().all()
-
-    @classmethod
-    async def get_expired_active_tokens(cls, session: AsyncSession) -> Sequence['AdminToken']:
-        sample = await session.execute(select(cls).where(cls.expires_at < func.now(), cls.is_active == True))
-        return sample.scalars().all()
 
     @classmethod
     async def get_or_create_token(cls, session: AsyncSession, user_id: int) -> 'AdminToken':

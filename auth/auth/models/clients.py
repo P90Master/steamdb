@@ -29,12 +29,14 @@ class Client(Base):
     roles = relationship(
         "Role",
         secondary=client_role_association,
-        back_populates="clients"
+        back_populates="clients",
+        cascade="all, delete"
     )
     personal_scopes  = relationship(
         "Scope",
         secondary=client_scope_association,
-        back_populates="clients"
+        back_populates="clients",
+        cascade="all, delete"
     )
 
     def check_secret(self, secret: str) -> bool:
