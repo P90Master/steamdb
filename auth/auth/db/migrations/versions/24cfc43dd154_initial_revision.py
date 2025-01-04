@@ -1,8 +1,8 @@
 """Initial revision
 
-Revision ID: e51f3fc85d2f
+Revision ID: 24cfc43dd154
 Revises:
-Create Date: 2025-01-03 16:21:25.344775
+Create Date: 2025-01-03 22:16:23.322514
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'e51f3fc85d2f'
+revision: str = '24cfc43dd154'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -46,6 +46,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('username', sa.String(), nullable=False),
     sa.Column('password', sa.String(), nullable=False),
+    sa.Column('is_superuser', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('username')
     )
@@ -54,8 +55,18 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('token', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('client_id', sa.String(), nullable=False),
-    sa.ForeignKeyConstraint(['client_id'], ['clients.id'], ),
+    sa.Column('client_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['client_id'], ['clients.pk'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('token')
+    )
+    op.create_table('admintokens',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('token', sa.String(), nullable=False),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), server_default=sa.text("now() + INTERVAL '86400 seconds'"), nullable=False),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('token')
     )
@@ -78,8 +89,8 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('token', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('client_id', sa.String(), nullable=False),
-    sa.ForeignKeyConstraint(['client_id'], ['clients.id'], ),
+    sa.Column('client_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['client_id'], ['clients.pk'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('token')
     )
@@ -107,6 +118,7 @@ def downgrade() -> None:
     op.drop_table('refreshtokens')
     op.drop_table('client_scope')
     op.drop_table('client_role')
+    op.drop_table('admintokens')
     op.drop_table('accesstokens')
     op.drop_table('users')
     op.drop_table('scopes')

@@ -21,7 +21,7 @@ services:
       context: auth/
     environment:
       DEBUG: ${DEBUG}
-      SUPERUSER_NAME: ${AUTH_SUPERUSER_NAME}
+      SUPERUSER_USERNAME: ${AUTH_SUPERUSER_USERNAME}
       SUPERUSER_PASSWORD: ${AUTH_SUPERUSER_PASSWORD}
       DB_HOST: ${AUTH_DB_HOST}
       DB_PORT: ${AUTH_DB_PORT}

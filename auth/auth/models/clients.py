@@ -6,14 +6,14 @@ from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.utils import hash_secret
-from auth.db import Base, int_pk, str_unique
+from auth.db import Base, int_pk, str_index
 from .permissions import Role, Scope
 from .associations import client_scope_association, client_role_association
 
 
 class Client(Base):
     pk: Mapped[int_pk]
-    id: Mapped[str_unique]
+    id: Mapped[str_index]
     secret: Mapped[str]
     name: Mapped[str] = None
     description: Mapped[str] = None

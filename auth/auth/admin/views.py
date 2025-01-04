@@ -8,8 +8,8 @@ from starlette_admin.contrib.sqla import ModelView
 from starlette_admin.exceptions import ActionFailed, FormValidationError
 
 from auth.utils import hash_secret
-from .users import User
-from .clients import Client
+from auth.models.users import User
+from auth.models.clients import Client
 
 
 __all__ = (
@@ -19,16 +19,21 @@ __all__ = (
     "RoleView",
     "AccessTokenView",
     "RefreshTokenView",
+    "AdminTokenView",
 )
 
 
 class UserView(ModelView):
-    fields = ["id", "username", "password"]
+    fields = ["id", "username", "password", "tokens", "is_superuser"]
     exclude_fields_from_list = ["password"]
     exclude_fields_from_detail = ["password"]
     exclude_fields_from_edit = ["password"]
+    exclude_fields_from_create = ["tokens"]
 
     row_actions = ["view", "edit", "change_password", "delete"]
+
+    def is_accessible(self, request: Request) -> bool:
+        return  request.state.user.is_superuser
 
     async def validate(self, request: Request, data: dict[str, Any]) -> None:
         errors: dict[str, str] = {}
@@ -76,7 +81,8 @@ class UserView(ModelView):
     async def create(self, request: Request, data: dict[str, Any]) -> User:
         username = data['username']
         password = data['password']
-        return await User.register(username, password, request.state.session)
+        is_superuser = data['is_superuser']
+        return await User.register(request.state.session, username, password, is_superuser)
 
 
 class ClientView(ModelView):
@@ -154,3 +160,10 @@ class AccessTokenView(ModelView):
 
 class RefreshTokenView(ModelView):
     fields = ["id", "token", "client", "is_active", "expires_at"]
+
+
+class AdminTokenView(ModelView):
+    fields = ["id", "token", "user", "is_active", "expires_at"]
+
+    def is_accessible(self, request: Request) -> bool:
+        return  request.state.user.is_superuser

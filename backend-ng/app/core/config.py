@@ -1,6 +1,7 @@
 import secrets
 import warnings
 from typing import Annotated, Any
+from typing_extensions import Self
 
 from pydantic import (
     AnyUrl,
@@ -12,7 +13,6 @@ from pydantic import (
 )
 
 from pydantic_settings import BaseSettings
-from typing_extensions import Self
 
 
 def parse_cors(v: Any) -> list[str] | str:
