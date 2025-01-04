@@ -1,4 +1,3 @@
-import secrets
 import warnings
 from typing_extensions import Self
 
@@ -12,7 +11,12 @@ class Settings(BaseSettings):
     TIME_ZONE: str = 'Europe/Moscow'
     USE_TZ: bool = True
     SUPERUSER_USERNAME: str = 'admin'
-    SUPERUSER_PASSWORD: str = secrets.token_urlsafe(16)
+    SUPERUSER_PASSWORD: str = 'CHANGE-ME'
+
+    ESSENTIAL_BACKEND_CLIENT_ID: str = 'backend'
+    ESSENTIAL_BACKEND_CLIENT_SECRET: str = 'CHANGE-ME'
+    ESSENTIAL_WORKER_CLIENT_ID: str = 'worker'
+    ESSENTIAL_WORKER_CLIENT_SECRET: str = 'CHANGE-ME'
 
     ACCESS_TOKEN_BYTES_LENGTH: int = 16
     REFRESH_TOKEN_BYTES_LENGTH: int = 32
@@ -91,6 +95,8 @@ class Settings(BaseSettings):
     @model_validator(mode='after')
     def _enforce_non_default_secrets(self) -> Self:
         self._check_default_secret('SUPERUSER_PASSWORD', self.SUPERUSER_PASSWORD)
+        self._check_default_secret('ESSENTIAL_BACKEND_CLIENT_SECRET', self.ESSENTIAL_BACKEND_CLIENT_SECRET)
+        self._check_default_secret('ESSENTIAL_WORKER_CLIENT_SECRET', self.ESSENTIAL_WORKER_CLIENT_SECRET)
         self._check_default_secret('DB_PASSWORD', self.DB_PASSWORD)
         return self
 
