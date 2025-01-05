@@ -139,10 +139,10 @@ class ClientView(ModelView):
             session=request.state.session,
             id_=data['id'],
             secret=data['secret'],
-            name=data['name'],
-            description=data['description'],
-            roles=data['roles'],
-            personal_scopes=data['personal_scopes']
+            name=data.get('name'),
+            description=data.get('description'),
+            roles=data.get('roles'),
+            personal_scopes=data.get('personal_scopes')
         )
 
 

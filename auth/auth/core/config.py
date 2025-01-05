@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     DEBUG: bool = True
-    API_VERSION: str = 'v1'
+    API_VERSION: str = 'oauth2'
     TIME_ZONE: str = 'Europe/Moscow'
     USE_TZ: bool = True
     SUPERUSER_USERNAME: str = 'admin'
@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_SECONDS: int = 86400
     ADMIN_TOKEN_EXPIRE_SECONDS: int = 86400
     MAX_ACCESS_TOKENS_PER_CLIENT: int = 10
+    # TOKEN_TYPE: str = 'Bearer'
 
     DB_HOST: str = 'auth-db'
     DB_PORT: int = 5432

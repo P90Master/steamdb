@@ -30,10 +30,14 @@ class AdminProvider(AuthProvider):
 
         token = await AdminToken.get_or_create_token(session, user.id)
 
-        if remember_me:
-            response.set_cookie(key="token", value=token.token, max_age=60 * 60 * 24 * 3)
-        else:
-            response.set_cookie(key="token", value=token.token, max_age=60 * 60 * 3)
+        response.set_cookie(
+            key="token",
+            value=token.token,
+            httponly=True,
+            # secure=True,  # for HTTPS
+            samesite="lax",
+            max_age=60 * 60 * 24 * 3 if remember_me else 60 * 60 * 3
+        )
 
         return response
 

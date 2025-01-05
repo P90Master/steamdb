@@ -56,8 +56,8 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('token', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('client_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['client_id'], ['clients.pk'], ),
+    sa.Column('client_pk', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['client_pk'], ['clients.pk'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_accesstokens_token'), 'accesstokens', ['token'], unique=True)
@@ -90,8 +90,8 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('token', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('client_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['client_id'], ['clients.pk'], ),
+    sa.Column('client_pk', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['client_pk'], ['clients.pk'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_refreshtokens_token'), 'refreshtokens', ['token'], unique=True)

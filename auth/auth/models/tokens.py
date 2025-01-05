@@ -42,7 +42,7 @@ class BaseToken(Base):
     token: Mapped[str_index]
     is_active: Mapped[bool]
 
-    client_id: Mapped[str] = mapped_column(ForeignKey("clients.pk"), nullable=False)
+    client_pk: Mapped[int] = mapped_column(ForeignKey("clients.pk"), nullable=False)
 
 
 class AccessToken(BaseToken):
@@ -57,20 +57,27 @@ class AccessToken(BaseToken):
     )
 
     @classmethod
-    async def create_token(cls, session: AsyncSession, client_id: str, scopes: List[Scope]) -> 'AccessToken':
-        clients_tokens_query = select(cls).where(cls.client_id == client_id, cls.is_active == True)
-        active_tokens_count = await session.execute(func.count(clients_tokens_query))
+    async def create_token(cls, session: AsyncSession, client_pk: int, scopes: List[Scope]) -> 'AccessToken':
+        active_tokens_count_query = select(func.count()).select_from(
+            cls
+        ).where(
+            cls.client_pk == client_pk,
+            cls.is_active == True
+        )
+        active_tokens_count = (await session.execute(active_tokens_count_query)).scalar()
 
+        # TODO: Threat of endless access_token creation spam. Request throttling for clients?
         if active_tokens_count >= settings.MAX_ACCESS_TOKENS_PER_CLIENT:
-            query = update(cls).where(cls.client_id == client_id, cls.is_active == True).values(is_active=False)
+            query = update(cls).where(cls.client_pk == client_pk, cls.is_active == True).values(is_active=False)
             await session.execute(query)
             await session.commit()
 
         # TODO: think about token collisions
-        new_token = cls(token=token_hex(settings.ACCESS_TOKEN_BYTES_LENGTH), client_id=client_id, is_active=True)
+        new_token = cls(token=token_hex(settings.ACCESS_TOKEN_BYTES_LENGTH), client_pk=client_pk, is_active=True)
         new_token.scopes.extend(scopes)
         session.add(new_token)
         await session.commit()
+        await session.refresh(new_token)
         return new_token
 
 
@@ -80,23 +87,23 @@ class RefreshToken(BaseToken):
     client = relationship("Client", back_populates="refresh_token")
 
     @classmethod
-    async def get_or_create_token(cls, session: AsyncSession, client_id: str) -> 'RefreshToken':
-        sample = await session.execute(select(cls).where(cls.client_id == client_id, cls.is_active == True))
+    async def get_or_create_token(cls, session: AsyncSession, client_pk: int) -> 'RefreshToken':
+        sample = await session.execute(select(cls).where(cls.client_pk == client_pk, cls.is_active == True))
         token = sample.scalars().one_or_none()
-        return token if token else await cls._create_token_unsafe(session, client_id)
+        return token if token else await cls._create_token_unsafe(session, client_pk)
 
     @classmethod
-    async def create_token(cls, session: AsyncSession, client_id: str) -> 'RefreshToken':
+    async def create_token(cls, session: AsyncSession, client_pk: int) -> 'RefreshToken':
         await session.execute(
-            update(cls).where(cls.client_id == client_id, cls.is_active == True).values(is_active=False)
+            update(cls).where(cls.client_pk == client_pk, cls.is_active == True).values(is_active=False)
         )
         await session.commit()
-        return await cls._create_token_unsafe(session, client_id)
+        return await cls._create_token_unsafe(session, client_pk)
 
     @classmethod
-    async def _create_token_unsafe(cls, session: AsyncSession, client_id: str) -> 'RefreshToken':
+    async def _create_token_unsafe(cls, session: AsyncSession, client_pk: int) -> 'RefreshToken':
         # TODO: think about token collisions
-        new_token = cls(token=token_hex(settings.REFRESH_TOKEN_BYTES_LENGTH), client_id=client_id, is_active=True)
+        new_token = cls(token=token_hex(settings.REFRESH_TOKEN_BYTES_LENGTH), client_pk=client_pk, is_active=True)
         session.add(new_token)
         await session.commit()
         return new_token

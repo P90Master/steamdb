@@ -21,7 +21,6 @@ from auth.admin import (
     AdminProvider,
 )
 from auth.db import engine
-from auth.core.config import settings
 
 
 app: FastAPI = FastAPI()
@@ -48,6 +47,11 @@ admin.add_view(AccessTokenView(AccessToken))
 admin.add_view(RefreshTokenView(RefreshToken))
 admin.add_view(AdminTokenView(AdminToken))
 admin.mount_to(app)
+
+
+from auth.api import api_router
+
+app.include_router(api_router)
 
 
 @app.get("/")

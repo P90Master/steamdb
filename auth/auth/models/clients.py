@@ -2,7 +2,7 @@ import asyncio
 
 import bcrypt
 from sqlalchemy import select
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, relationship, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.utils import hash_secret
@@ -50,8 +50,8 @@ class Client(Base):
             secret: str,
             name: str,
             description: str,
-            personal_scopes: list[str],
-            roles: list[str]
+            personal_scopes: list[str] | None = None,
+            roles: list[str] | None = None
     ) -> 'Client':
         hashed_password = hash_secret(secret)
 
@@ -80,4 +80,26 @@ class Client(Base):
         await session.refresh(new_client)
         return new_client
 
-    # TODO: method for retrieving all client's scopes (from roles and personal scopes)
+    async def get_all_scopes(self, session: AsyncSession) -> list[Scope]:
+        stmt = (
+            select(Client)
+            .options(
+                joinedload(Client.personal_scopes),
+                joinedload(Client.roles).joinedload(Role.scopes)
+            )
+            .where(Client.id == self.id)
+        )
+
+        result = await session.execute(stmt)
+        client = result.scalars().first()
+
+        if not client:
+            return []
+
+        scopes = set()
+        scopes.update(client.personal_scopes)
+
+        for role in client.roles:
+            scopes.update(role.scopes)
+
+        return list(scopes)
