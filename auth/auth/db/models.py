@@ -12,7 +12,7 @@ __all__ = ["Base", "int_pk", "str_pk", "str_unique", "str_index", "last_updated"
 int_pk = Annotated[int, mapped_column(primary_key=True, autoincrement=True)]
 str_pk = Annotated[str, mapped_column(primary_key=True)]
 str_unique = Annotated[str, mapped_column(unique=True, nullable=False)]
-str_index = Annotated[str_unique, mapped_column(index=True)]
+str_index = Annotated[str, mapped_column(unique=True, nullable=False, index=True)]
 last_updated = Annotated[datetime, mapped_column(server_default=func.now(), onupdate=datetime.now)]
 
 

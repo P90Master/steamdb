@@ -1,7 +1,7 @@
 from typing import List
 from sqlalchemy.orm import Mapped, relationship
 
-from auth.db import Base, int_pk
+from auth.db import Base, int_pk, str_index
 from .associations import (
     scope_role_association,
     client_role_association,
@@ -14,7 +14,7 @@ class Scope(Base):
     id: Mapped[int_pk]
     name: Mapped[str]
     description: Mapped[str]
-    action: Mapped[str]
+    action: Mapped[str_index]
 
     roles = relationship(
         "Role",
