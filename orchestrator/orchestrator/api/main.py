@@ -1,6 +1,6 @@
 from fastapi import FastAPI, APIRouter
 
-from orchestrator.config import settings
+from orchestrator.core.config import settings
 from .routers import task_router
 
 

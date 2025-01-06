@@ -1,10 +1,12 @@
 import threading
 import time
 
+from pika.adapters.blocking_connection import BlockingChannel
 from pika.exceptions import AMQPConnectionError, ChannelWrongStateError
+from pika.spec import Basic, BasicProperties
 
-from orchestrator.config import settings
-from orchestrator.logger import get_logger
+from orchestrator.core.config import settings
+from orchestrator.core.logger import get_logger
 from orchestrator.db import Session
 from .connections import create_channel
 from .tasks import TaskManager
@@ -22,14 +24,14 @@ def consume_messages():
         logger=consuming_messages_logger
     )
 
-    def handle_income_task(ch, method, properties, body):
+    def handle_income_task(ch: BlockingChannel, method: Basic.Deliver, properties: BasicProperties, body: bytes):
         # threading.Thread(target=task_manager.handle_received_task_message, args=(ch, method, properties, body)).start()
         task_manager.handle_received_task_message(ch, method, properties, body)
 
     worker_channel.basic_consume(queue=settings.RABBITMQ_INCOME_QUERY, on_message_callback=handle_income_task)
 
     # TODO: run task in new thread & control it amount (semaphore?)
-    def process_events(stop_consuming_messages_):
+    def process_events(stop_consuming_messages_: threading.Event):
         while not stop_consuming_messages_.is_set():
             time.sleep(settings.RABBITMQ_HEARTBEATS_TIMEOUT)
             worker_channel.connection.process_data_events()

@@ -1,7 +1,7 @@
 from celery import Celery
 from celery.schedules import crontab
 
-from orchestrator.config import settings
+from orchestrator.core.config import settings
 
 app = Celery(
     settings.CELERY_NAME,
@@ -10,7 +10,7 @@ app = Celery(
     task_serializer='json',
     accept_content=['json'],
     result_serializer='json',
-    timezone='Europe/Moscow',
+    timezone=settings.TIME_ZONE if settings.USE_TZ else None,
     enable_utc=True,
     worker_hijack_root_logger=False,
 )
@@ -18,10 +18,10 @@ app = Celery(
 app.conf.beat_schedule = {
     'actualize_app_list': {
         'task': 'orchestrator.celery.tasks.scheduled.request_apps_list',
-        'schedule': crontab(settings.CELERY_SCHEDULE_REQUEST_ACTUAL_APP_LIST),
+        'schedule': crontab(*settings.CELERY_SCHEDULE_REQUEST_ACTUAL_APP_LIST.split()),
     },
     'bulk_request_for_most_outdated_apps_data': {
         'task': 'orchestrator.celery.tasks.scheduled.bulk_request_for_most_outdated_apps_data',
-        'schedule': crontab(settings.CELERY_SCHEDULE_REQUEST_FOR_APPS_DATA),
+        'schedule': crontab(*settings.CELERY_SCHEDULE_REQUEST_FOR_APPS_DATA.split()),
     }
 }

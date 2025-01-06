@@ -1,6 +1,6 @@
 from celery import Celery
 
-from orchestrator.config import settings
+from orchestrator.core.config import settings
 
 
 app = Celery(

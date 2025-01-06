@@ -1,7 +1,7 @@
 from orchestrator.messenger.tasks import TaskManager
 from orchestrator.messenger.connections import create_channel
-from orchestrator.logger import get_logger
-from orchestrator.config import settings
+from orchestrator.core.logger import get_logger
+from orchestrator.core.config import settings
 from orchestrator.db import Session
 from orchestrator.celery.worker import app
 

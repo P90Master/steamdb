@@ -3,7 +3,7 @@ from typing import Annotated, List, Literal
 from pydantic import BaseModel, Field
 from pydantic.functional_validators import BeforeValidator
 
-from orchestrator.config import settings
+from orchestrator.core.config import settings
 
 
 def validate_country_code(value: str) -> str:

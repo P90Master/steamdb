@@ -1,9 +1,9 @@
 import pika
 
-from orchestrator.config import settings
+from orchestrator.core.config import settings
 
 
-def create_channel():
+def create_channel() -> tuple[pika.adapters.blocking_connection.BlockingChannel, pika.BlockingConnection]:
     new_connection = pika.BlockingConnection(
         pika.ConnectionParameters(
             host=settings.RABBITMQ_HOST,

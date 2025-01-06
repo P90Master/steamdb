@@ -4,22 +4,23 @@ import json
 from collections.abc import Iterable
 from datetime import datetime
 from logging import Logger
-from typing import Optional
+from typing import Optional, Any
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
+from pika.spec import Basic, BasicProperties
 from sqlalchemy import select, insert, update
 from sqlalchemy.orm import Session
 
-from orchestrator.config import settings
-from orchestrator.logger import get_logger
+from orchestrator.core.config import settings
+from orchestrator.core.logger import get_logger
 from orchestrator.db import App
 
 from .utils import trace_logs, HandledException, batch_slicer
 
 
 class TaskManagerMeta(type):
-    def __new__(cls, name, bases, attrs):
+    def __new__(cls, name: str, bases: tuple[type], attrs: dict[str, Any]):
         new_class = super().__new__(cls, name, bases, attrs)
         new_class._receive_tasks = {}
 
@@ -44,7 +45,7 @@ class TaskManager(metaclass=TaskManagerMeta):
         self.logger = logger if logger else get_logger(settings, __name__)
         self.send_msg_with_priority = send_msg_with_priority
 
-    def execute_task(self, task):
+    def execute_task(self, task: callable) -> callable:
         @functools.wraps(task)
         def wrapper(*args, **kwargs):
             loop = asyncio.get_event_loop()
@@ -52,10 +53,10 @@ class TaskManager(metaclass=TaskManagerMeta):
 
         return wrapper
 
-    def get_receive_task_handler(self, task_name):
+    def get_receive_task_handler(self, task_name: str) -> Optional[callable]:
         return self._receive_tasks.get(task_name)
 
-    def register_task(self, task_context):
+    def register_task(self, task_context: dict[str, Any]):
         if not self.messenger_channel:
             self.logger.error('Cannot register task - messenger channel is not initialized')
             return
@@ -71,7 +72,13 @@ class TaskManager(metaclass=TaskManagerMeta):
             )
         )
 
-    def handle_received_task_message(self, ch, method, properties, body):
+    def handle_received_task_message(
+            self,
+            ch: BlockingChannel,
+            method: pika.spec.Basic.Deliver,
+            properties: pika.spec.BasicProperties,
+            body: bytes
+    ):
         data = json.loads(body)
 
         if not (requested_task_name := data.get('task_name')):
@@ -140,8 +147,8 @@ class TaskManager(metaclass=TaskManagerMeta):
     @trace_logs
     def bulk_request_for_most_outdated_apps_data(
             self,
-            batch_size=settings.BATCH_SIZE_OF_UPDATING_STEAM_APPS,
-            country_codes=settings.DEFAULT_COUNTRY_BUNDLE
+            batch_size: int = settings.BATCH_SIZE_OF_UPDATING_STEAM_APPS,
+            country_codes: list[str] = settings.DEFAULT_COUNTRY_BUNDLE
     ):
         def get_apps_need_updating() -> Iterable[int]:
             query = (
@@ -166,7 +173,13 @@ class TaskManager(metaclass=TaskManagerMeta):
 
 
     @trace_logs
-    def receive_task__actualize_app_list(self, ch, method, properties, task_params):
+    def receive_task__actualize_app_list(
+            self,
+            ch: BlockingChannel,
+            method: Basic.Deliver,
+            properties: BasicProperties,
+            task_params: dict[str, Any]
+    ):
         if not (app_ids := task_params.get('app_ids')):
             error_msg = 'Task "actualize_app_list": No app_ids provided in task context'
             self.logger.error(error_msg)
@@ -175,7 +188,7 @@ class TaskManager(metaclass=TaskManagerMeta):
         actual_ids = set(app_ids)
         existing_ids_query = select(App.id)
 
-        with self.db_session_maker() as session:
+        with self.db_session_maker() as session:  # noqa: E701
             existing_ids = {row[0] for row in session.execute(existing_ids_query)}
             new_ids = list(actual_ids - existing_ids)
             self.logger.debug(f'Task "actualize_app_list": received {len(new_ids)} new apps')
@@ -188,13 +201,19 @@ class TaskManager(metaclass=TaskManagerMeta):
                 session.commit()
 
     @trace_logs
-    def receive_task__update_apps_status(self, ch, method, properties, task_params):
+    def receive_task__update_apps_status(
+            self,
+            ch: BlockingChannel,
+            method: Basic.Deliver,
+            properties: BasicProperties,
+            task_params: dict[str, Any]
+    ):
         if not (app_ids := task_params.get('app_ids')):
             error_msg = 'Task "actualize_app_list": No app_ids provided in task context'
             self.logger.error(error_msg)
             raise HandledException(error_msg)
 
-        with self.db_session_maker() as session:
+        with self.db_session_maker() as session:  # noqa: E701
             for batch_of_ids in batch_slicer(app_ids, settings.DB_INPUT_BATCH_SIZE):
                 query = (
                     update(App)

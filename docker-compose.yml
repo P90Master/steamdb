@@ -58,8 +58,10 @@ services:
       POSTGRES_USER: ${AUTH_DB_USER}
       POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
       POSTGRES_DB: ${AUTH_DB_NAME}
-    ports:
-      - "${AUTH_DB_PORT:-5432}:5432"
+    # ports:
+    #   - "${AUTH_DB_PORT:-5432}:5432"
+    expose:
+      - "${AUTH_DB_PORT:-5432}"
     volumes:
       - auth-db-data:/var/lib/postgresql/data
     networks:

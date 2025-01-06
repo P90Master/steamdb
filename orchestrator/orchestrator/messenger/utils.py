@@ -16,8 +16,8 @@ def batch_slicer(collection, batch_size=1000):
 
 
 # FIXME: Dead code
-def async_execute(coro):
-    def run_coro(coroutine, *args, **kwargs):
+def async_execute(coro: callable) -> callable:
+    def run_coro(coroutine: callable, *args, **kwargs):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         result = loop.run_until_complete(coroutine(*args, **kwargs))
@@ -32,9 +32,9 @@ def async_execute(coro):
     return wrapper
 
 
-def trace_logs(decorated):
+def trace_logs(decorated: callable):
     @functools.wraps(decorated)
-    def sync_wrapper(self, *args, **kwargs):
+    def sync_wrapper(self: object, *args, **kwargs):
         task_name = decorated.__name__
         if not hasattr(self, 'logger'):
             raise AttributeError(f"Class of decorated method {task_name} doesn't have logger")
@@ -56,7 +56,7 @@ def trace_logs(decorated):
             self.logger.info(f"Task executed: {task_name}")
             return result
 
-    async def async_wrapper(self, *args, **kwargs):
+    async def async_wrapper(self: object, *args, **kwargs):
         task_name = decorated.__name__
         if not hasattr(self, 'logger'):
             raise AttributeError(f"Decorated method {task_name} doesn't have logger")
