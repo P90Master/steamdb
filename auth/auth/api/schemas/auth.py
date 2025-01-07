@@ -19,7 +19,7 @@ class AuthenticationRequestSchema(BaseModel):
 
 class AuthenticationResponseSchema(BaseModel):
     access_token: str
-    # token_type: str
+    token_type: str
     expires_in: int
     refresh_token: str
 
@@ -51,5 +51,4 @@ class RefreshTokenRequestSchema(BaseModel):
 
 class RefreshTokenResponseSchema(BaseModel):
     access_token: str
-    # token_type: str
     expires_in: int

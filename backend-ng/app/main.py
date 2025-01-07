@@ -10,7 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.utils.cache import CacheManager, RedisBackend
 from app.models import DOCUMENTS
-from app.middlewares import ReplaceQueryParamsMiddleware
+from app.middlewares import ReplaceQueryParamsMiddleware, AuthMiddleware, ExceptionHandlerMiddleware
 
 
 @asynccontextmanager
@@ -47,6 +47,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(ReplaceQueryParamsMiddleware)  # type: ignore
+app.add_middleware(AuthMiddleware)  # type: ignore
+app.add_middleware(ExceptionHandlerMiddleware)  # type: ignore
 
 
 from app.api import api_router

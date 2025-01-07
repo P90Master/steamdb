@@ -1,9 +1,10 @@
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.models import App
 from app.api.schemas import AppPackageSchema, AppPackageDataSchema, AppInCountrySchema, AppPriceSchema, AppSchema
+from app.auth import Permissions
 
 
 router = APIRouter(prefix='/package')
@@ -131,7 +132,7 @@ async def handle_successful_package(package: AppPackageDataSchema) -> AppSchema:
 
 
 @router.post('', status_code=201)
-async def handle_app_package(package: AppPackageSchema):
+async def handle_app_package(package: AppPackageSchema, _ = Depends(Permissions.is_worker)):
     if package.is_success:
         await handle_successful_package(package.data)
 

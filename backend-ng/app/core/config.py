@@ -1,4 +1,3 @@
-import secrets
 import warnings
 from typing import Annotated, Any
 from typing_extensions import Self
@@ -28,10 +27,25 @@ def parse_cors(v: Any) -> list[str] | str:
 class Settings(BaseSettings):
     DEBUG: bool = True
     API_VERSION: str = 'v1'
-    SECRET_KEY: str = secrets.token_urlsafe(32)
     TIME_ZONE: str = 'Europe/Moscow'
     USE_TZ: bool = True
     MAIN_COUNTRY: str = 'US'
+
+    ESSENTIAL_BACKEND_CLIENT_ID: str = 'backend'
+    ESSENTIAL_BACKEND_CLIENT_SECRET: str = 'CHANGE-ME'
+    OAUTH2_SERVER_HOST: str = 'localhost'
+    OAUTH2_SERVER_PORT: int = 8001
+    OAUTH2_SERVER_PROTOCOL: str = 'http'
+
+    @computed_field
+    @property
+    def OAUTH2_SERVER_URL(self) -> str:  # type: ignore
+        return AnyUrl.build(
+            scheme=self.OAUTH2_SERVER_PROTOCOL,
+            host=self.OAUTH2_SERVER_HOST,
+            port=self.OAUTH2_SERVER_PORT,
+            path='api/oauth2/introspect',
+        ).unicode_string()
 
     FRONTEND_HOST: str = 'http://localhost:3000'
     BACKEND_CORS_ORIGINS: Annotated[
@@ -95,8 +109,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode='after')
     def _enforce_non_default_secrets(self) -> Self:
-        self._check_default_secret('SECRET_KEY', self.SECRET_KEY)
         self._check_default_secret('MONGO_PASSWORD', self.MONGO_PASSWORD)
+        self._check_default_secret('ESSENTIAL_BACKEND_CLIENT_SECRET', self.ESSENTIAL_BACKEND_CLIENT_SECRET)
         return self
 
     class Config:

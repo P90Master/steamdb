@@ -50,15 +50,17 @@ async def get_access_token(request: AuthenticationRequestSchema, db: AsyncSessio
     client_pk = client.pk
     access_token = await AccessToken.create_token(session=db, client_pk=client_pk, scopes=selected_scopes)
     refresh_token = await RefreshToken.get_or_create_token(session=db, client_pk=client_pk)
+    await db.refresh(access_token)
+    await db.refresh(refresh_token)
     return AuthenticationResponseSchema(
         access_token=access_token.token,
-        # token_type=settings.TOKEN_TYPE,
+        token_type=settings.TOKEN_TYPE,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
         refresh_token=refresh_token.token
     )
 
 
-@router.post('/token_info', response_model=TokenIntrospectionResponseSchema, status_code=200)
+@router.post('/introspect', response_model=TokenIntrospectionResponseSchema, status_code=200)
 async def get_token_info(request: TokenIntrospectionRequestSchema, db: AsyncSession = Depends(get_db)):
     token = (
         await db.execute(

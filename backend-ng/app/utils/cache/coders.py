@@ -11,4 +11,8 @@ class JsonCoder(Coder):
 
     @classmethod
     def decode(cls, value: bytes) -> Any:
-        return json.loads(json.loads(value.decode()))
+        first_layer = json.loads(value.decode())
+        if isinstance(first_layer, dict):
+            return first_layer
+
+        return json.loads(first_layer)
