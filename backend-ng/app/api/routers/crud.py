@@ -1,10 +1,11 @@
 from datetime import datetime
 from typing import Annotated, Iterable
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi_filter import FilterDepends
 from pydantic import Field
 
+from app.auth import Permissions
 from app.models import App
 from app.utils.cache import CacheManager
 from app.api.schemas import (
@@ -141,7 +142,7 @@ async def get_app(app_id: Annotated[int, Field(gt=0)], page: int = Query(1, ge=0
 
 
 @router.delete('/{app_id}', status_code=204)
-async def delete_app(app_id: Annotated[int, Field(gt=0)]):
+async def delete_app(app_id: Annotated[int, Field(gt=0)], _ = Depends(Permissions.can_delete)):
     app = await App.find_one(App.id == app_id)
 
     if app is None:
@@ -151,13 +152,17 @@ async def delete_app(app_id: Annotated[int, Field(gt=0)]):
 
 
 @router.post('', status_code=201, response_model=AppSchema)
-async def create_app(app_data: AppSchema):
+async def create_app(app_data: AppSchema, _ = Depends(Permissions.can_create)):
     await raise_if_app_already_exists(app_data.id)
     return await App(**app_data.model_dump()).insert()  # type: ignore
 
 
 @router.patch('/{app_id}', response_model=AppSchema)
-async def patch_app(app_id: Annotated[int, Field(gt=0)], app_data: AppEditingSchema):
+async def patch_app(
+        app_id: Annotated[int, Field(gt=0)],
+        app_data: AppEditingSchema,
+        _ = Depends(Permissions.can_update)
+):
     app = await App.find_one(App.id == app_id)
 
     if app is None:
@@ -204,7 +209,11 @@ async def patch_app(app_id: Annotated[int, Field(gt=0)], app_data: AppEditingSch
 
 
 @router.put('/{app_id}', response_model=AppSchema)
-async def put_in_app(app_id: Annotated[int, Field(gt=0)], app_data: AppEditingSchema):
+async def put_in_app(
+        app_id: Annotated[int, Field(gt=0)],
+        app_data: AppEditingSchema,
+        _ = Depends(Permissions.can_update)
+):
     app = await App.find_one(App.id == app_id)
 
     if app is None:
