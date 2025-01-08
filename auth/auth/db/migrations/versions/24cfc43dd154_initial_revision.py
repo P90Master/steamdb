@@ -2,7 +2,7 @@
 
 Revision ID: 24cfc43dd154
 Revises:
-Create Date: 2025-01-03 22:16:23.322514
+Create Date: 2025-01-08 18:08:28.133812
 
 """
 from typing import Sequence, Union
@@ -74,15 +74,15 @@ def upgrade() -> None:
     op.create_table('client_role',
     sa.Column('client_id', sa.Integer(), nullable=False),
     sa.Column('role_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['client_id'], ['clients.pk'], ),
-    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
+    sa.ForeignKeyConstraint(['client_id'], ['clients.pk'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('client_id', 'role_id')
     )
     op.create_table('client_scope',
     sa.Column('client_id', sa.Integer(), nullable=False),
     sa.Column('scope_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['client_id'], ['clients.pk'], ),
-    sa.ForeignKeyConstraint(['scope_id'], ['scopes.id'], ),
+    sa.ForeignKeyConstraint(['client_id'], ['clients.pk'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['scope_id'], ['scopes.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('client_id', 'scope_id')
     )
     op.create_table('refreshtokens',
@@ -98,15 +98,15 @@ def upgrade() -> None:
     op.create_table('scope_role',
     sa.Column('scope_id', sa.Integer(), nullable=False),
     sa.Column('role_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
-    sa.ForeignKeyConstraint(['scope_id'], ['scopes.id'], ),
+    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['scope_id'], ['scopes.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('scope_id', 'role_id')
     )
     op.create_table('token_scope',
     sa.Column('token', sa.Integer(), nullable=False),
     sa.Column('scope_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['scope_id'], ['scopes.id'], ),
-    sa.ForeignKeyConstraint(['token'], ['accesstokens.id'], ),
+    sa.ForeignKeyConstraint(['scope_id'], ['scopes.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['token'], ['accesstokens.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('token', 'scope_id')
     )
     # ### end Alembic commands ###

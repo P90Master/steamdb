@@ -13,24 +13,24 @@ __all__ = [
 client_scope_association = Table(
     'client_scope',
     Base.metadata,
-    Column('client_id', ForeignKey('clients.pk'), primary_key=True),
-    Column('scope_id', ForeignKey('scopes.id'), primary_key=True)
+    Column('client_id', ForeignKey('clients.pk', ondelete='CASCADE'), primary_key=True),
+    Column('scope_id', ForeignKey('scopes.id', ondelete='CASCADE'), primary_key=True)
 )
 client_role_association = Table(
     'client_role',
     Base.metadata,
-    Column('client_id', ForeignKey('clients.pk'), primary_key=True),
-    Column('role_id', ForeignKey('roles.id'), primary_key=True)
+    Column('client_id', ForeignKey('clients.pk', ondelete='CASCADE'), primary_key=True),
+    Column('role_id', ForeignKey('roles.id', ondelete='CASCADE'), primary_key=True)
 )
 scope_role_association = Table(
     'scope_role',
     Base.metadata,
-    Column('scope_id', ForeignKey('scopes.id'), primary_key=True),
-    Column('role_id', ForeignKey('roles.id'), primary_key=True)
+    Column('scope_id', ForeignKey('scopes.id', ondelete='CASCADE'), primary_key=True),
+    Column('role_id', ForeignKey('roles.id', ondelete='CASCADE'), primary_key=True)
 )
 token_scope_association = Table(
     'token_scope',
     Base.metadata,
-    Column('token', ForeignKey('accesstokens.id'), primary_key=True),
-    Column('scope_id', ForeignKey('scopes.id'), primary_key=True)
+    Column('token', ForeignKey('accesstokens.id', ondelete='CASCADE'), primary_key=True),
+    Column('scope_id', ForeignKey('scopes.id', ondelete='CASCADE'), primary_key=True)
 )

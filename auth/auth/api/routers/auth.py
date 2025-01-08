@@ -14,6 +14,7 @@ from auth.api.schemas import (
     RefreshTokenRequestSchema,
     RefreshTokenResponseSchema,
 )
+from auth.utils.cache import CacheManager
 
 router = APIRouter()
 
@@ -62,6 +63,12 @@ async def get_access_token(request: AuthenticationRequestSchema, db: AsyncSessio
 
 @router.post('/introspect', response_model=TokenIntrospectionResponseSchema, status_code=200)
 async def get_token_info(request: TokenIntrospectionRequestSchema, db: AsyncSession = Depends(get_db)):
+    cache_key = f'token_{request.access_token}'
+    cached_app_data = await CacheManager.get(cache_key)
+
+    if cached_app_data:
+        return TokenIntrospectionResponseSchema(**cached_app_data)
+
     token = (
         await db.execute(
             select(AccessToken).where(
@@ -79,12 +86,14 @@ async def get_token_info(request: TokenIntrospectionRequestSchema, db: AsyncSess
     if not (client := token.client):
         raise HTTPException(status_code=401, detail=f'invalid_token')
 
-    return TokenIntrospectionResponseSchema(
+    token_info = TokenIntrospectionResponseSchema(
         is_active=token.is_active,
         client_id=client.id,
         scopes=[scope.action for scope in token.scopes],
         expires_at=int(token.expires_at.timestamp())
     )
+    await CacheManager.save(token_info.model_dump_json(), cache_key)
+    return token_info
 
 
 @router.post('/token_refresh', response_model=RefreshTokenResponseSchema, status_code=200)

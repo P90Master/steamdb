@@ -8,6 +8,7 @@ from redis.asyncio import ConnectionPool
 from starlette.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.logger import get_logger
 from app.utils.cache import CacheManager, RedisBackend
 from app.models import DOCUMENTS
 from app.middlewares import ReplaceQueryParamsMiddleware, AuthMiddleware, ExceptionHandlerMiddleware
@@ -20,7 +21,12 @@ async def lifespan(app_: FastAPI):
 
     cache_pool = ConnectionPool.from_url(url=settings.CACHE_URL)
     redis_instance = redis.Redis(connection_pool=cache_pool)
-    CacheManager.init(RedisBackend(redis_instance), prefix=settings.CACHE_PREFIX, expire=settings.CACHE_TIMEOUT)
+    CacheManager.init(
+        RedisBackend(redis_instance),
+        prefix=settings.CACHE_PREFIX,
+        expire=settings.CACHE_TIMEOUT,
+        logger=get_logger(settings, 'cache'),
+    )
 
     yield
 

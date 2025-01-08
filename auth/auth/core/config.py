@@ -78,6 +78,30 @@ class Settings(BaseSettings):
     def CELERY_BACKEND(self) -> str:  # type: ignore
         return self.CELERY_BROKER_URL
 
+    CACHE_TIMEOUT: int = 60 * 10
+    CACHE_PREFIX: str = 'auth-cache'
+    CACHE_HOST: str = 'localhost'
+    CACHE_PORT: int = 6379
+    CACHE_PASSWORD: str = 'CHANGE-ME'
+    CACHE_PROTOCOL: str = 'redis'
+
+    @computed_field
+    @property
+    def CACHE_URL(self) -> str:  # type: ignore
+        if self.CACHE_PROTOCOL == 'redis':
+            return RedisDsn.build(
+                scheme='redis',
+                host=self.CACHE_HOST,
+                port=self.CACHE_PORT,
+                password=self.CACHE_PASSWORD
+            ).unicode_string()
+
+        return AnyUrl.build(
+            scheme=self.CACHE_PROTOCOL,
+            host=self.CACHE_HOST,
+            port=self.CACHE_PORT,
+        ).unicode_string()
+
     CELERY_TASK_TIME_LIMIT: int = 1800
     CELERY_SCHEDULE_CLEAN_EXPIRED_TOKENS: str = '0 */2 * * *'
 
@@ -99,6 +123,7 @@ class Settings(BaseSettings):
         self._check_default_secret('ESSENTIAL_BACKEND_CLIENT_SECRET', self.ESSENTIAL_BACKEND_CLIENT_SECRET)
         self._check_default_secret('ESSENTIAL_WORKER_CLIENT_SECRET', self.ESSENTIAL_WORKER_CLIENT_SECRET)
         self._check_default_secret('DB_PASSWORD', self.DB_PASSWORD)
+        self._check_default_secret('CACHE_PASSWORD', self.CACHE_PASSWORD)
         return self
 
     class Config:

@@ -1,4 +1,8 @@
+from contextlib import asynccontextmanager
+
+import redis.asyncio as redis
 from fastapi import FastAPI
+from redis.asyncio import ConnectionPool
 from starlette_admin.contrib.sqla import Admin
 
 from auth.models import (
@@ -21,9 +25,36 @@ from auth.admin import (
     AdminProvider,
 )
 from auth.db import engine
+from auth.utils.cache import CacheManager, RedisBackend
+from auth.core.config import settings
+from auth.core.logger import get_logger
 
 
-app: FastAPI = FastAPI()
+@asynccontextmanager
+async def lifespan(app_: FastAPI):
+    cache_pool = ConnectionPool.from_url(url=settings.CACHE_URL)
+    redis_instance = redis.Redis(connection_pool=cache_pool)
+    CacheManager.init(
+        RedisBackend(redis_instance),
+        prefix=settings.CACHE_PREFIX,
+        expire=settings.CACHE_TIMEOUT,
+        logger=get_logger(settings, 'cache'),
+    )
+
+    yield
+
+    await cache_pool.disconnect()
+
+
+app: FastAPI = FastAPI(
+    title="Steam DB OAuth2.0 Server",
+    version="0.0.1",
+    license_info={
+        "name": "MIT",
+        "url": "https://github.com/P90Master/steamdb/blob/main/LICENSE",
+    },
+    lifespan=lifespan,
+)
 
 # without nginx redirection
 # @app.middleware("http")

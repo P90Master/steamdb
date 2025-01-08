@@ -1,8 +1,9 @@
+import asyncio
 from datetime import datetime
 from secrets import token_hex
 from typing import Annotated, List
 
-from sqlalchemy import DateTime, func, select, update, text, ForeignKey
+from sqlalchemy import DateTime, func, select, update, text, ForeignKey, event
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +11,7 @@ from auth.core.config import settings
 from auth.db import Base, int_pk, str_index
 from auth.models.associations import token_scope_association
 from auth.models.permissions import Scope
+from auth.utils.cache import CacheManager
 
 
 access_token_expiring = Annotated[
@@ -140,3 +142,13 @@ class AdminToken(Base):
         session.add(new_token)
         await session.commit()
         return new_token
+
+
+async def clear_cache_task(target: str):
+    cache_key = f'token_{target}'
+    await CacheManager.clear(cache_key)
+
+
+@event.listens_for(AccessToken, 'after_update')
+def after_access_token_update(mapper, connection, target: AccessToken):
+    asyncio.create_task(clear_cache_task(target.token))
