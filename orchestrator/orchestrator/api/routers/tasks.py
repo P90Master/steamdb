@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Path
+from fastapi import APIRouter, Path, Depends
 
 from orchestrator.celery.tasks.api import request_apps_list, request_app_data, bulk_request_apps_data
 from orchestrator.celery import get_task_status
-
+from orchestrator.api.auth import Permissions
 from orchestrator.api.schemas.tasks import TaskResponse, AppDataRequest, AppDataBulkRequest, TaskStatusResponse
 
 
@@ -10,26 +10,27 @@ router = APIRouter(prefix='/tasks', tags=['tasks'])
 
 
 @router.post("/update_app_data")
-async def update_app_data(data: AppDataRequest) -> TaskResponse:
+async def update_app_data(data: AppDataRequest, _ = Depends(Permissions.can_register_tasks)) -> TaskResponse:
     task = request_app_data.delay(app_id=data.app_id, country_code=data.country_code)
     return TaskResponse(task_id=task.id)
 
 
 @router.post("/bulk_update_app_data")
-async def bulk_update_app_data(data: AppDataBulkRequest) -> TaskResponse:
+async def bulk_update_app_data(data: AppDataBulkRequest, _ = Depends(Permissions.can_register_tasks)) -> TaskResponse:
     task = bulk_request_apps_data.delay(app_ids=data.app_ids, country_codes=data.country_codes)
     return TaskResponse(task_id=task.id)
 
 
 @router.post("/update_app_list")
-async def update_app_list() -> TaskResponse:
+async def update_app_list(_ = Depends(Permissions.can_register_tasks)) -> TaskResponse:
     task = request_apps_list.delay()
     return TaskResponse(task_id=task.id)
 
 
 @router.get("/{task_id}")
 async def task_status(
-        task_id: str = Path(..., regex=r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
+        task_id: str = Path(..., regex=r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'),
+        _ = Depends(Permissions.can_register_tasks)
 ) -> TaskStatusResponse:
     status = get_task_status(task_id)
     return TaskStatusResponse(status=status)

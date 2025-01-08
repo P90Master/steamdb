@@ -5,7 +5,6 @@ import httpx
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from orchestrator.core.config import settings
-from app.utils.cache import CacheManager
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -24,11 +23,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
     async def verify_token(self, token: str) -> dict[str, Any]:
-        cache_key = f'token_{token}'
-        cached_app_data = await CacheManager.get(cache_key)
-
-        if cached_app_data:
-            return cached_app_data
+        """
+        Two caching options were considered: caching token data on the authentication server itself,
+        or caching the results obtained from it by consumer services. I settled on the first option,
+        since in the event of a data leak from the cache storage of consumer services
+        (which may not be password-protected at all), the tokens and client data stored there will be compromised.
+        """
 
         async with httpx.AsyncClient() as client:
             response = await client.post(settings.OAUTH2_SERVER_URL, json={"access_token": token})
@@ -37,5 +37,4 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 raise HTTPException(status_code=response.status_code, detail=response.json().get("detail"))
 
             token_info = response.json()
-            await CacheManager.save(response.json(), cache_key, expire=300)
             return token_info

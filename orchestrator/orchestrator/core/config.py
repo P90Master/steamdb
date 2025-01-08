@@ -94,6 +94,20 @@ class OrchestratorSettings(BaseSettings):
     CELERY_SCHEDULE_REQUEST_ACTUAL_APP_LIST: str = '*/5 * * * *'
     CELERY_SCHEDULE_REQUEST_FOR_APPS_DATA: str = '*/5 * * * *'
 
+    OAUTH2_SERVER_HOST: str = 'localhost'
+    OAUTH2_SERVER_PORT: int = 8001
+    OAUTH2_SERVER_PROTOCOL: str = 'http'
+
+    @computed_field
+    @property
+    def OAUTH2_SERVER_URL(self) -> str:  # type: ignore
+        return AnyUrl.build(
+            scheme=self.OAUTH2_SERVER_PROTOCOL,
+            host=self.OAUTH2_SERVER_HOST,
+            port=self.OAUTH2_SERVER_PORT,
+            path='api/oauth2/introspect',
+        ).unicode_string()
+
     LOGGER_WRITE_IN_FILE: bool = True
     LOGGER_LOG_FILES_PATH: str = 'logs'
 
