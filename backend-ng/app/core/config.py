@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     OAUTH2_SERVER_PORT: int = 8001
     OAUTH2_SERVER_PROTOCOL: str = 'http'
 
+    LOGGER_WRITE_IN_FILE: bool = True
+    LOGGER_LOG_FILES_PATH: str = 'logs'
+
     @computed_field
     @property
     def OAUTH2_SERVER_URL(self) -> str:  # type: ignore

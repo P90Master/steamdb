@@ -1,65 +1,7 @@
-from enum import Enum
-
-from pydantic import field_validator
+from pydantic import field_validator, computed_field, RedisDsn, AnyUrl
 from pydantic_settings import BaseSettings
 
-
-class CountryCodes(Enum):
-    united_states = "US"
-    china = "CN"
-    japan = "JP"
-    germany = "DE"
-    india = "IN"
-    united_kingdom = "GB"
-    france = "FR"
-    italy = "IT"
-    canada = "CA"
-    south_korea = "KR"
-    russia = "RU"
-    brazil = "BR"
-    australia = "AU"
-    spain = "ES"
-    mexico = "MX"
-    indonesia = "ID"
-    netherlands = "NL"
-    switzerland = "CH"
-    sweden = "SE"
-    belgium = "BE"
-    austria = "AT"
-    argentina = "AR"
-    norway = "NO"
-    czech_republic = "CZ"
-
-
-class CountryCodeSteamCurrencyMapping(Enum):
-    @classmethod
-    def get(cls, code):
-        return cls[code].value if code in cls.__members__ else None
-
-    US = "USD"
-    CN = "CNY"
-    JP = "JPY"
-    DE = "EUR"
-    IN = "INR"
-    GB = "GBP"
-    FR = "EUR"
-    IT = "EUR"
-    CA = "CAD"
-    KR = "KRW"
-    RU = "RUB"
-    BR = "BRL"
-    AU = "AUD"
-    ES = "EUR"
-    MX = "MXN"
-    ID = "IDR"
-    NL = "EUR"
-    CH = "CHF"
-    SE = "SEK"
-    BE = "EUR"
-    AT = "EUR"
-    AR = "USD"
-    NO = "NOK"
-    CZ = "CZK"
+from worker.core.enums import CountryCodes
 
 
 class WorkerSettings(BaseSettings):
@@ -75,30 +17,62 @@ class WorkerSettings(BaseSettings):
         CountryCodes.brazil.value,
     ]
     DEBUG: bool = True
+    TIME_ZONE: str = 'Europe/Moscow'
+    USE_TZ: bool = True
 
     BACKEND_PROTOCOL: str = "http"
     BACKEND_HOST: str = "backend"
     BACKEND_PORT: int = 8000
-    # TODO: advanced URL builder (like validator func)
-    BACKEND_URL: str = f'{BACKEND_PROTOCOL}://{BACKEND_HOST}:{BACKEND_PORT}'
     BACKEND_API_VERSION: str = 'v1'
+
+    @computed_field
+    @property
+    def BACKEND_PACKAGE_ENDPOINT_URL(self) -> str:  # type: ignore
+        return AnyUrl.build(
+            scheme=self.BACKEND_PROTOCOL,
+            host=self.BACKEND_HOST,
+            port=self.BACKEND_PORT,
+            path=f'api/{settings.BACKEND_API_VERSION}/package',
+        ).unicode_string()
 
     STEAM_APP_LIST_URL: str = 'http://api.steampowered.com/ISteamApps/GetAppList/v2'
     STEAM_APP_DETAIL_URL: str = 'http://store.steampowered.com/api/appdetails'
 
     LOGGER_WRITE_IN_FILE: bool = True
-    LOGGER_LOG_FILES_PATH: str = 'logs'
+    LOGGER_LOG_FILES_PATH: str = '../logs'
 
     CELERY_NAME: str = "requests_to_steam"
     CELERY_BROKER_HOST: str = "worker-celery-broker"
     CELERY_BROKER_PORT: int = 6379
     CELERY_BROKER_PROTOCOL: str = "redis"
-    # TODO: advanced URL builder (like validator func)
-    CELERY_BROKER_URL: str = f"{CELERY_BROKER_PROTOCOL}://{CELERY_BROKER_HOST}:{CELERY_BROKER_PORT}/0"
-    CELERY_BROKER: str = CELERY_BROKER_URL
-    CELERY_BACKEND: str = CELERY_BROKER_URL
     CELERY_TASK_COMMON_RATE_LIMIT: str = '39/m'
     CELERY_TASK_TIME_LIMIT: int = 20
+
+    @computed_field
+    @property
+    def CELERY_BROKER_URL(self) -> str:  # type: ignore
+        if self.CELERY_BROKER_PROTOCOL == 'redis':
+            return RedisDsn.build(
+                scheme='redis',
+                host=self.CELERY_BROKER_HOST,
+                port=self.CELERY_BROKER_PORT,
+            ).unicode_string()
+
+        return AnyUrl.build(
+            scheme=self.CELERY_BROKER_PROTOCOL,
+            host=self.CELERY_BROKER_HOST,
+            port=self.CELERY_BROKER_PORT,
+        ).unicode_string()
+
+    @computed_field
+    @property
+    def CELERY_BROKER(self) -> str:  # type: ignore
+        return self.CELERY_BROKER_URL
+
+    @computed_field
+    @property
+    def CELERY_BACKEND(self) -> str:  # type: ignore
+        return self.CELERY_BROKER_URL
 
     RABBITMQ_HOST: str = 'orchestrator-worker-broker'
     RABBITMQ_PORT: int = 5672

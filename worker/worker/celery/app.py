@@ -1,6 +1,6 @@
 from celery import Celery
 
-from worker.config import settings
+from worker.core.config import settings
 
 
 celery_app = Celery(
@@ -10,7 +10,7 @@ celery_app = Celery(
     task_serializer='json',
     accept_content=['json'],
     result_serializer='json',
-    timezone='UTC',
+    timezone=settings.TIME_ZONE if settings.USE_TZ else None,
     enable_utc=True,
 )
 celery_app.autodiscover_tasks(['worker.celery'])

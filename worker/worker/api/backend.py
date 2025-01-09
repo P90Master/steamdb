@@ -1,11 +1,11 @@
 import abc
-from typing import Dict, Any
+from typing import Any
 from enum import Enum
 
 import aiohttp
 
 from .base import APIClientException, BaseAsyncAPIClient, BaseAsyncSessionClient, handle_response_exceptions, retry
-from worker.config import settings
+from worker.core.config import settings
 
 
 class BackendAPIClientException(APIClientException):
@@ -14,16 +14,16 @@ class BackendAPIClientException(APIClientException):
 
 class BackendAPI(abc.ABC):
     class BackendAPIUrl(Enum):
-        app_data_package = f'{settings.BACKEND_URL}/api/{settings.BACKEND_API_VERSION}/games/package/'
+        app_data_package = settings.BACKEND_PACKAGE_ENDPOINT_URL
 
     @classmethod
     @property
-    def get_app_data_package_endpoint(cls):
+    def get_app_data_package_endpoint(cls) -> str:
         return cls.BackendAPIUrl.app_data_package.value
 
     @abc.abstractmethod
-    def post_app_data_package(self, *args, **kwargs):
-        pass
+    def post_app_data_package(self, app_data_package: dict[str, Any]) -> dict[str, Any]:
+        ...
 
 
 class AsyncBackendSessionClient(BaseAsyncSessionClient, BackendAPI):
@@ -31,7 +31,7 @@ class AsyncBackendSessionClient(BaseAsyncSessionClient, BackendAPI):
 
     @handle_response_exceptions(component=__name__, url=BackendAPI.get_app_data_package_endpoint, method="POST")
     @retry()
-    async def post_app_data_package(self, app_data_package: Dict[str, Any]):
+    async def post_app_data_package(self, app_data_package: dict[str, Any]) -> dict[str, Any]:
         async with self._session.post(self.get_app_data_package_endpoint, json=app_data_package) as response:
             response.raise_for_status()
             return await response.json()
@@ -44,7 +44,7 @@ class AsyncBackendAPIClient(BaseAsyncAPIClient, BackendAPI):
 
     @handle_response_exceptions(component=__name__, url=BackendAPI.get_app_data_package_endpoint, method="POST")
     @retry()
-    async def post_app_data_package(self, app_data_package: Dict[str, Any]):
+    async def post_app_data_package(self, app_data_package: dict[str, Any]) -> dict[str, Any]:
         async with self.SESSION_CLIENT_FOR_SINGLE_REQUESTS() as session:
             async with session.post(self.get_app_data_package_endpoint, json=app_data_package) as response:
                 response.raise_for_status()

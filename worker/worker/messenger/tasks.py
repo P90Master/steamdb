@@ -2,20 +2,21 @@ import asyncio
 import functools
 import json
 from logging import Logger
-from typing import Any
+from typing import Any, Optional
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
+from pika.spec import BasicProperties, Basic
 
-from worker.config import settings
-from worker.logger import get_logger
+from worker.core.config import settings
+from worker.core.logger import get_logger
 from worker.celery import execute_celery_task, get_app_list_celery_task, get_app_detail_celery_task
 from worker.api import SteamAPIClient, AsyncBackendAPIClient
 from .utils import convert_steam_app_data_response_to_backend_app_data_package, trace_logs, HandledException
 
 
 class TaskManagerMeta(type):
-    def __new__(cls, name, bases, attrs):
+    def __new__(cls, name: str, bases: tuple[type], attrs: dict[str, Any]) -> type:
         new_class = super().__new__(cls, name, bases, attrs)
         new_class._receive_tasks = {}
 
@@ -42,15 +43,15 @@ class TaskManager(metaclass=TaskManagerMeta):
         self.steam_api_client = steam_api_client
         self.logger = logger if logger else get_logger(settings, __name__)
 
-    def execute_task(self, task):
+    def execute_task(self, task: callable) -> callable:
         @functools.wraps(task)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs) -> Any:
             loop = asyncio.get_event_loop()
             return loop.run_until_complete(task(self, **kwargs))
 
         return wrapper
 
-    def get_receive_task_handler(self, task_name):
+    def get_receive_task_handler(self, task_name: str) -> Optional[callable]:
         return self._receive_tasks.get(task_name)
 
     def register_task(self, task_context: dict[str, Any], message_priority: int = 1):
@@ -68,7 +69,8 @@ class TaskManager(metaclass=TaskManagerMeta):
             )
         )
 
-    def handle_received_task_message(self, ch, method, properties, body):
+    def handle_received_task_message(
+            self, ch: BlockingChannel, method: Basic.Deliver, properties: BasicProperties, body: bytes):
         data = json.loads(body)
 
         if not (requested_task_name := data.get('task_name')):
@@ -104,8 +106,9 @@ class TaskManager(metaclass=TaskManagerMeta):
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
     @trace_logs
-    def receive_task__request_apps_list(self, ch, method, properties, task_params):
-        async def _task(*args, **kwargs):
+    def receive_task__request_apps_list(
+            self, ch: BlockingChannel, method: Basic.Deliver, properties: BasicProperties, task_params: dict[str, Any]):
+        async def _task(*args, **kwargs) -> list[str]:
             self.logger.info('Task "request_apps_list": Start execution.')
 
             apps_collection, is_success = await execute_celery_task(celery_task=get_app_list_celery_task)
@@ -129,14 +132,15 @@ class TaskManager(metaclass=TaskManagerMeta):
         self.register_task(orchestrator_task_context, message_priority=properties.priority)
 
     @trace_logs
-    def receive_task__request_app_data(self, ch, method, properties, task_params):
+    def receive_task__request_app_data(
+            self, ch: BlockingChannel, method: Basic.Deliver, properties: BasicProperties, task_params: dict[str, Any]):
         async def _task(*args, **kwargs):
             self.logger.info(f'Task request_app_data": Start execution.')
             self.logger.debug(f'Task "request_app_data": Requested AppID: {app_id} CountryCode: {country_code}')
 
             request_params = {'app_id': app_id, 'country_code': country_code}
             app_data_response, is_success = await execute_celery_task(
-                celery_task=get_app_detail_celery_task,
+                celery_task=get_app_detail_celery_task,  # type: ignore
                 **request_params
             )
             if not is_success:
@@ -190,7 +194,8 @@ class TaskManager(metaclass=TaskManagerMeta):
         self.register_task(orchestrator_task_context, message_priority=properties.priority)
 
     @trace_logs
-    def receive_task__bulk_request_for_apps_data(self, ch, method, properties, task_params):
+    def receive_task__bulk_request_for_apps_data(
+            self, ch: BlockingChannel, method: Basic.Deliver, properties: BasicProperties, task_params):
         async def _task(*args, **kwargs):
             self.logger.info(
                 f'Task "bulk_request_for_apps_data":'
@@ -200,7 +205,7 @@ class TaskManager(metaclass=TaskManagerMeta):
             backend_request_tasks = set()
             successfully_updated_app_ids = set()
 
-            def save_successfully_updated_app_id_and_clear_task_pool(backend_task):
+            def save_successfully_updated_app_id_and_clear_task_pool(backend_task: asyncio.Task):
                 # TODO: if task has exception (because of it asyncio.wait stopped and this in done) ?
                 backend_request_tasks.discard(backend_task)
                 updated_app_id = (backend_task.result() or {}).get('data', {}).get('id')
@@ -216,7 +221,7 @@ class TaskManager(metaclass=TaskManagerMeta):
                         }
 
                         app_data_response, is_success = await execute_celery_task(
-                            celery_task=get_app_detail_celery_task,
+                            celery_task=get_app_detail_celery_task,  # type: ignore
                             **request_params
                         )
                         if not is_success:

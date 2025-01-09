@@ -10,7 +10,7 @@ app = Celery(
     task_serializer='json',
     accept_content=['json'],
     result_serializer='json',
-    timezone='Europe/Moscow',
+    timezone=settings.TIME_ZONE if settings.USE_TZ else None,
     enable_utc=True,
     worker_hijack_root_logger=False,
 )

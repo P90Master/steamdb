@@ -2,13 +2,14 @@ import abc
 import asyncio
 import functools
 from time import sleep
-from typing import Callable
+from types import TracebackType
+from typing import Literal, Any, Type
 
 import aiohttp
 import requests
 
-from worker.config import settings
-from worker.logger import get_logger
+from worker.core.config import settings
+from worker.core.logger import get_logger
 
 
 logger = get_logger(settings)
@@ -35,10 +36,14 @@ DEFAULT_HANDLEABLE_ASYNC_EXCEPTIONS = (
 )
 
 
-def handle_response_exceptions(component=__name__, method=None, url=None)-> Callable:
-    def decorator(decorated):
+def handle_response_exceptions(
+        component: str = __name__,
+        method: Literal["GET", "POST", "PUT", "DELETE"] | None = None,
+        url: str | None = None
+)-> callable:
+    def decorator(decorated: callable) -> callable:
         @functools.wraps(decorated)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args, **kwargs) -> any:
             try:
                 return await decorated(*args, **kwargs)
 
@@ -86,13 +91,13 @@ def handle_response_exceptions(component=__name__, method=None, url=None)-> Call
     return decorator
 
 
-def retry(timeout: int = 5, attempts: int = 2, request_exceptions: tuple[Exception] = None) -> Callable:
+def retry(timeout: int = 5, attempts: int = 2, request_exceptions: tuple[Exception] | None = None) -> callable:
     if not request_exceptions:
         request_exceptions = DEFAULT_EXCEPTIONS_FOR_RETRY
 
-    def decorator(decorated):
+    def decorator(decorated: callable) -> callable:
         @functools.wraps(decorated)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args, **kwargs) -> Any:
             attempts_counter = attempts
 
             while True:
@@ -112,7 +117,7 @@ def retry(timeout: int = 5, attempts: int = 2, request_exceptions: tuple[Excepti
                         raise request_error
 
         @functools.wraps(decorated)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args, **kwargs) -> Any:
             attempts_counter = attempts
 
             while True:
@@ -137,7 +142,7 @@ def retry(timeout: int = 5, attempts: int = 2, request_exceptions: tuple[Excepti
 
 
 class BaseAsyncSessionClient(abc.ABC):
-    SESSION_CLASS = NotImplemented
+    SESSION_CLASS = ...
 
     def __init__(self, *args, **kwargs):
         self._session = self.SESSION_CLASS(*args, **kwargs)
@@ -148,17 +153,17 @@ class BaseAsyncSessionClient(abc.ABC):
 
 class BaseAsyncAPIClient(abc.ABC):
     SESSION_CLIENT = BaseAsyncSessionClient
-    SESSION_CLIENT_FOR_SINGLE_REQUESTS = NotImplemented
+    SESSION_CLIENT_FOR_SINGLE_REQUESTS = ...
     API_CLIENT_EXCEPTION_CLASS = APIClientException
 
-    def __init__(self, token):
-        self._token = token
-        self._session = None
-        self._session_client = self.SESSION_CLIENT
-        self._session_lock = asyncio.Lock()
-        self._session_consumers_counter = 0
+    def __init__(self, token: str | None = None):
+        self._token: str | None = token
+        self._session: BaseAsyncSessionClient | None = None
+        self._session_client: Type[BaseAsyncSessionClient] = self.SESSION_CLIENT
+        self._session_lock: asyncio.Lock = asyncio.Lock()
+        self._session_consumers_counter: int = 0
 
-    async def __aenter__(self, *args, **kwargs):
+    async def __aenter__(self, *args, **kwargs) -> BaseAsyncSessionClient:
         async with self._session_lock:
             self._session_consumers_counter += 1
 
@@ -171,7 +176,12 @@ class BaseAsyncAPIClient(abc.ABC):
 
             return self._session
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+            self,
+            exc_type: Type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: TracebackType | None
+    ) -> bool | None:
         async with self._session_lock:
             self._session_consumers_counter -= 1
 

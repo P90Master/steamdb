@@ -1,16 +1,19 @@
 import asyncio
+from typing import Any
 
-from worker.config import settings
-from worker.logger import get_logger
-
-# FIXME rename current package to avoid collision with 3rd party?
+from celery import Task
 from celery.exceptions import SoftTimeLimitExceeded
+from celery.result import AsyncResult
+
+from worker.core.config import settings
+from worker.core.logger import get_logger
+
 
 
 logger = get_logger(settings)
 
 
-async def execute_celery_task(celery_task, *task_args, **task_kwargs):
+async def execute_celery_task(celery_task: Task, *task_args, **task_kwargs) -> tuple[Any, bool]:
     launched_celery_task = None
 
     try:
@@ -33,7 +36,10 @@ async def execute_celery_task(celery_task, *task_args, **task_kwargs):
         return None, False
 
 
-async def wait_celery_task_result(celery_task):
+async def wait_celery_task_result(celery_task: AsyncResult) -> Any:
+    # Primitive hack for non-blocking waiting for task results in an asynchronous context
+    # TODO: add timeout? (But await hasn't)
+
     while not celery_task.ready():
         await asyncio.sleep(0.1)
 

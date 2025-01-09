@@ -3,13 +3,14 @@ import sys
 import logging
 from logging.handlers import RotatingFileHandler
 
+from pydantic_settings import BaseSettings
 
 formatter = logging.Formatter("[%(name)s %(asctime)s %(levelname)s] %(message)s")
 stdout_handler = logging.StreamHandler(stream=sys.stdout)
 stdout_handler.setFormatter(formatter)
 
 
-def get_logger(settings, name=__name__):
+def get_logger(settings: BaseSettings, name: str = __name__):
     logger = logging.getLogger(name)
     logger.propagate = False
 

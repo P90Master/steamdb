@@ -1,16 +1,18 @@
 import asyncio
 import functools
+from logging import Logger
+from typing import Any
 
-from worker.config import CountryCodeSteamCurrencyMapping
+from worker.core.enums import CountryCodeSteamCurrencyMapping
 
 
 class HandledException(Exception):
     pass
 
 
-def trace_logs(decorated):
+def trace_logs(decorated: callable) -> callable:
     @functools.wraps(decorated)
-    def sync_wrapper(self, *args, **kwargs):
+    def sync_wrapper(self, *args, **kwargs) -> Any:
         task_name = decorated.__name__
         if not hasattr(self, 'logger'):
             raise AttributeError(f"Decorated method {task_name} doesn't have logger")
@@ -32,7 +34,7 @@ def trace_logs(decorated):
             self.logger.info(f"Task executed: {task_name}")
             return result
 
-    async def async_wrapper(self, *args, **kwargs):
+    async def async_wrapper(self, *args, **kwargs) -> Any:
         task_name = decorated.__name__
         if not hasattr(self, 'logger'):
             raise AttributeError(f"Decorated method {task_name} doesn't have logger")
@@ -57,7 +59,7 @@ def trace_logs(decorated):
     return async_wrapper if asyncio.iscoroutinefunction(decorated) else sync_wrapper
 
 
-def convert_steam_app_data_response_to_backend_app_data_package(request_params, response, logger):
+def convert_steam_app_data_response_to_backend_app_data_package(request_params: dict[str, Any], response: dict[str, Any], logger: Logger):
     app_id = request_params.get('app_id')
     app_response = response.get(str(app_id))
 
@@ -72,7 +74,7 @@ def convert_steam_app_data_response_to_backend_app_data_package(request_params, 
         package_data = build_failed_task_package_data(request_params)
 
     else:
-        package_data = backend_package_data_builder.build(app_data, request_params)
+        package_data = BackendPackageDataBuilder.build(app_data, request_params)
 
     return {'is_success': is_success, 'data': package_data}
 
@@ -85,81 +87,87 @@ def build_failed_task_package_data(request_params: dict):
 
 
 class BackendPackageDataBuilder:
-    def __init__(self):
-        self.backend_package_data_build_schema = {
-            "id": self._extract_app_id,
-            "name": self._extract_app_name,
-            "type": self._extract_app_type,
-            "is_free": self._extract_app_is_free,
-            "short_description": self._extract_app_short_description,
-            "developers": self._extract_app_developers,
-            "publishers": self._extract_app_publishers,
-            "total_recommendations": self._extract_app_total_recommendations,
-            "country_code": self._extract_response_country_code,
-            "currency": self._extract_response_currency,
-            "discount": self._extract_app_discount,
-            "price": self._extract_app_price
+    backend_package_data_build_schema: dict[str, callable] = ...
+    
+    @classmethod
+    def init(cls):
+        cls.backend_package_data_build_schema = {
+            "id": cls._extract_app_id,
+            "name": cls._extract_app_name,
+            "type": cls._extract_app_type,
+            "is_free": cls._extract_app_is_free,
+            "short_description": cls._extract_app_short_description,
+            "developers": cls._extract_app_developers,
+            "publishers": cls._extract_app_publishers,
+            "total_recommendations": cls._extract_app_total_recommendations,
+            "country_code": cls._extract_response_country_code,
+            "currency": cls._extract_response_currency,
+            "discount": cls._extract_app_discount,
+            "price": cls._extract_app_price
         }
 
-    def build(self, app_data, app_request_params):
+    @classmethod
+    def build(cls, app_data: dict[str, Any], app_request_params: dict[str, Any]) -> dict[str, Any]:
         return {
             field_name: data_extractor(app_data, app_request_params)
-            for field_name, data_extractor in self.backend_package_data_build_schema.items()
+            for field_name, data_extractor in cls.backend_package_data_build_schema.items()
         }
 
     @staticmethod
-    def _extract_app_id(app_data, *args, **kwargs):
+    def _extract_app_id(app_data: dict[str, Any], *args, **kwargs) -> int:
         return app_data.get('steam_appid')
 
     @staticmethod
-    def _extract_app_name(app_data, *args, **kwargs):
+    def _extract_app_name(app_data: dict[str, Any], *args, **kwargs) -> str:
         return app_data.get('name')
 
     @staticmethod
-    def _extract_app_type(app_data, *args, **kwargs):
+    def _extract_app_type(app_data: dict[str, Any], *args, **kwargs) -> str:
         return app_data.get('type')
 
     @staticmethod
-    def _extract_app_is_free(app_data, *args, **kwargs):
+    def _extract_app_is_free(app_data: dict[str, Any], *args, **kwargs) -> bool:
         flag = app_data.get('is_free', False)
         return flag if isinstance(flag, bool) else str(flag).lower() == 'true'
 
     @staticmethod
-    def _extract_app_short_description(app_data, *args, **kwargs):
+    def _extract_app_short_description(app_data: dict[str, Any], *args, **kwargs) -> str:
         return app_data.get('short_description', '')
 
     @staticmethod
-    def _extract_app_developers(app_data, *args, **kwargs):
+    def _extract_app_developers(app_data: dict[str, Any], *args, **kwargs) -> list[str]:
         return app_data.get('developers', [])
 
     @staticmethod
-    def _extract_app_publishers(app_data, *args, **kwargs):
+    def _extract_app_publishers(app_data: dict[str, Any], *args, **kwargs) -> list[str]:
         return app_data.get('publishers', [])
 
     @staticmethod
-    def _extract_app_total_recommendations(app_data, *args, **kwargs):
+    def _extract_app_total_recommendations(app_data: dict[str, Any], *args, **kwargs) -> int:
         return app_data.get('recommendations', {}).get('total', 0)
 
     @staticmethod
-    def _extract_app_price(app_data, *args, **kwargs):
+    def _extract_app_price(app_data: dict[str, Any], *args, **kwargs) -> float:
         if app_data.get('is_free'):
-            return 0
+            return 0.0
 
         return float(app_data.get('price_overview', {}).get('final', 0)) / 100.0
 
     @staticmethod
-    def _extract_app_discount(app_data, *args, **kwargs):
+    def _extract_app_discount(app_data: dict[str, Any], *args, **kwargs) -> int:
         if app_data.get('is_free'):
             return 0
 
         return app_data.get('price_overview', {}).get('discount_percent', 0)
 
     @staticmethod
-    def _extract_response_country_code(app_data, app_request_params, *args, **kwargs):
+    def _extract_response_country_code(
+            app_data: dict[str, Any], app_request_params: dict[str, Any], *args, **kwargs) -> str:
         return app_request_params.get('country_code')
 
     @staticmethod
-    def _extract_response_currency(app_data, app_request_params, *args, **kwargs):
+    def _extract_response_currency(
+            app_data: dict[str, Any], app_request_params: dict[str, Any], *args, **kwargs) -> str:
         if app_data.get('is_free'):
             country_code = app_request_params.get('country_code')
             return CountryCodeSteamCurrencyMapping.get(country_code)
@@ -167,4 +175,4 @@ class BackendPackageDataBuilder:
         return app_data.get('price_overview', {}).get('currency')
 
 
-backend_package_data_builder = BackendPackageDataBuilder()
+BackendPackageDataBuilder.init()

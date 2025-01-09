@@ -1,5 +1,5 @@
 from worker.celery.app import celery_app
-from worker.config import settings
+from worker.core.config import settings
 from worker.api import steam_api_client
 
 
