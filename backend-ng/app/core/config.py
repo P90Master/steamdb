@@ -33,6 +33,9 @@ class Settings(BaseSettings):
 
     ESSENTIAL_BACKEND_CLIENT_ID: str = 'backend'
     ESSENTIAL_BACKEND_CLIENT_SECRET: str = 'CHANGE-ME'
+    ESSENTIAL_BACKEND_CLIENT_SCOPES: list[str] = [
+        'orchestrator/tasks'
+    ]
     OAUTH2_SERVER_HOST: str = 'localhost'
     OAUTH2_SERVER_PORT: int = 8001
     OAUTH2_SERVER_PROTOCOL: str = 'http'
@@ -99,6 +102,21 @@ class Settings(BaseSettings):
             scheme=self.CACHE_PROTOCOL,
             host=self.CACHE_HOST,
             port=self.CACHE_PORT,
+        ).unicode_string()
+
+    ORCHESTRATOR_HOST: str = 'orchestrator'
+    ORCHESTRATOR_PORT: int = 8888
+    ORCHESTRATOR_PROTOCOL: str = 'http'
+    ORCHESTRATOR_API_VERSION: str = 'v1'
+
+    @computed_field
+    @property
+    def ORCHESTRATOR_TASKS_API_URL(self) -> str:  # type: ignore
+        return AnyUrl.build(
+            scheme=self.OAUTH2_SERVER_PROTOCOL,
+            host=self.OAUTH2_SERVER_HOST,
+            port=self.OAUTH2_SERVER_PORT,
+            path=f'api/{self.ORCHESTRATOR_API_VERSION}/tasks/',
         ).unicode_string()
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:

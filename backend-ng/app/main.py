@@ -12,6 +12,7 @@ from app.core.logger import get_logger
 from app.utils.cache import CacheManager, RedisBackend
 from app.models import DOCUMENTS
 from app.middlewares import ReplaceQueryParamsMiddleware, AuthMiddleware, ExceptionHandlerMiddleware
+from app.external_api import OrchestratorAPIClient
 
 
 @asynccontextmanager
@@ -28,8 +29,15 @@ async def lifespan(app_: FastAPI):
         logger=get_logger(settings, 'cache'),
     )
 
+    OrchestratorAPIClient.init(
+        client_id=settings.ESSENTIAL_BACKEND_CLIENT_ID,
+        client_secret=settings.ESSENTIAL_BACKEND_CLIENT_SECRET
+    )
+
     yield
 
+    OrchestratorAPIClient.reset()
+    CacheManager.reset()
     app_.db_client.close()
     await cache_pool.disconnect()
 

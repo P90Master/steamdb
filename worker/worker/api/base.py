@@ -13,7 +13,7 @@ from worker.core.config import settings
 from worker.core.logger import get_logger
 
 
-logger = get_logger(settings)
+logger = get_logger(settings, 'external_api')
 
 
 class APIClientException(Exception):
