@@ -44,7 +44,7 @@ class BaseToken(Base):
     token: Mapped[str_index]
     is_active: Mapped[bool]
 
-    client_pk: Mapped[int] = mapped_column(ForeignKey("clients.pk"), nullable=False)
+    client_pk: Mapped[int] = mapped_column(ForeignKey("clients.pk"), nullable=True)
 
 
 class AccessToken(BaseToken):
@@ -55,7 +55,6 @@ class AccessToken(BaseToken):
         "Scope",
         secondary=token_scope_association,
         back_populates="tokens",
-        cascade="all, delete"
     )
 
     @classmethod
@@ -116,7 +115,7 @@ class AdminToken(Base):
     token: Mapped[str_index]
     is_active: Mapped[bool]
 
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=True)
     expires_at: Mapped[admin_token_expiring]
 
     user = relationship("User", back_populates="tokens")

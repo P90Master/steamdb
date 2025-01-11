@@ -12,7 +12,13 @@ from worker.core.config import settings
 from worker.core.logger import get_logger
 from worker.celery import execute_celery_task, get_app_list_celery_task, get_app_detail_celery_task
 from worker.api import SteamAPIClient, AsyncBackendAPIClient
-from .utils import convert_steam_app_data_response_to_backend_app_data_package, trace_logs, HandledException
+from .utils import (
+    convert_steam_app_data_response_to_backend_app_data_package,
+    trace_logs,
+    HandledException,
+    HandledCriticalException
+)
+from worker.api.base import AuthenticationError
 
 
 class TaskManagerMeta(type):
@@ -94,8 +100,12 @@ class TaskManager(metaclass=TaskManagerMeta):
             self.logger.error(error_msg)
             ch.basic_reject(delivery_tag=method.delivery_tag)
 
-        except HandledException as handled_exception:
+        except HandledException:
             ch.basic_reject(delivery_tag=method.delivery_tag)
+
+        except HandledCriticalException as error:
+            ch.basic_reject(delivery_tag=method.delivery_tag)
+            raise error
 
         except Exception as unhandled_error:
             error_msg = f'Task "{requested_task_name}" execution failed with error: {unhandled_error}'
@@ -159,6 +169,13 @@ class TaskManager(metaclass=TaskManagerMeta):
             try:
                 await self.backend_api_client.post_app_data_package(backend_package)
 
+            except AuthenticationError:
+                error_message = (
+                    f'Task "request_app_data": Backend client can\'t be authenticated.'
+                )
+                self.logger.critical(error_message)
+                raise HandledCriticalException(error_message)
+
             except Exception as unhandled_error:
                 error_message = (
                     # TODO: 'Task "request_app_data": ' prefix in consts
@@ -208,7 +225,17 @@ class TaskManager(metaclass=TaskManagerMeta):
             def save_successfully_updated_app_id_and_clear_task_pool(backend_task: asyncio.Task):
                 # TODO: if task has exception (because of it asyncio.wait stopped and this in done) ?
                 backend_request_tasks.discard(backend_task)
-                updated_app_id = (backend_task.result() or {}).get('data', {}).get('id')
+                try:
+                    task_result = backend_task.result() or {}
+
+                except Exception:
+                    self.logger.warning(
+                        f'Task "bulk_request_for_apps_data":'
+                        f' Error while saving successfully updated app'
+                    )
+                    return
+
+                updated_app_id = task_result.get('data', {}).get('id')
                 if updated_app_id:
                     successfully_updated_app_ids.add(updated_app_id)
 
@@ -241,6 +268,9 @@ class TaskManager(metaclass=TaskManagerMeta):
                         backend_request_tasks.add(task)
                         task.add_done_callback(save_successfully_updated_app_id_and_clear_task_pool)
 
+                if not backend_request_tasks:
+                    return list(successfully_updated_app_ids)
+
                 done, pending = await asyncio.wait(backend_request_tasks, return_when=asyncio.FIRST_EXCEPTION)
 
                 if exc := done.pop().exception():
@@ -260,6 +290,7 @@ class TaskManager(metaclass=TaskManagerMeta):
 
         if not (batch_of_app_ids := task_params.get('app_ids', [])):
             self.logger.warning('Task "bulk_request_for_apps_data": Receive empty batch of app ids')
+            return
 
         if not (country_codes := task_params.get('country_code', settings.DEFAULT_COUNTRY_BUNDLE)):
             self.logger.warning(

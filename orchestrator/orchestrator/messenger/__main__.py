@@ -37,7 +37,7 @@ def consume_messages():
             worker_channel.connection.process_data_events()
 
     stop_consuming_messages = threading.Event()
-    heartbeat_thread = threading.Thread(target=process_events, args=(stop_consuming_messages,))
+    heartbeat_thread = threading.Thread(target=process_events, args=(stop_consuming_messages,), daemon=True)
     heartbeat_thread.start()
 
     while True:

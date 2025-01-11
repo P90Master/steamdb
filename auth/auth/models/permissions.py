@@ -20,19 +20,16 @@ class Scope(Base):
         "Role",
         secondary=scope_role_association,
         back_populates="scopes",
-        cascade="all, delete"
     )
     clients = relationship(
         "Client",
         secondary=client_scope_association,
         back_populates="personal_scopes",
-        cascade="all, delete"
     )
     tokens = relationship(
         "AccessToken",
         secondary=token_scope_association,
         back_populates="scopes",
-        cascade="all, delete"
     )
 
 
@@ -45,11 +42,9 @@ class Role(Base):
         "Scope",
         secondary=scope_role_association,
         back_populates="roles",
-        cascade = "all, delete"
     )
     clients = relationship(
         "Client",
         secondary=client_role_association,
         back_populates="roles",
-        cascade="all, delete"
     )

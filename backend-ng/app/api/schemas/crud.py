@@ -44,7 +44,7 @@ class AppPriceSchema(BaseModel):
 
 
 class AppInCountrySchema(BaseModel):
-    is_available: Annotated[bool, Field(default=True)]
+    is_available: Annotated[bool, Field(default=False)]
     currency: Annotated[str | None, Field(max_length=3)] = None
     price_story: Annotated[list[AppPriceSchema] | None, Field(default_factory=list)]
 
@@ -59,7 +59,7 @@ class PaginatedAppPriceSchema(BaseModel):
 class AppInCountryWithPaginatedPricesSchema(BaseModel):
     is_available: Annotated[bool, Field(default=True)]
     currency: Annotated[str | None, Field(max_length=3)] = None
-    price_story: Annotated[PaginatedAppPriceSchema | None, Field(default_factory=list)]
+    price_story: PaginatedAppPriceSchema | None = None
 
 
 class AppInCountryCompactSchema(BaseModel):

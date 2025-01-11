@@ -1,4 +1,3 @@
-import asyncio
 import time
 import threading
 
@@ -12,7 +11,7 @@ from worker.api import backend_api_client, steam_api_client
 
 from .connections import create_channel
 from .tasks import TaskManager
-from .utils import HandledException
+from .utils import HandledException, HandledCriticalException
 
 
 def consume_messages():
@@ -38,7 +37,7 @@ def consume_messages():
             orchestrator_channel.connection.process_data_events()
 
     stop_consuming_messages = threading.Event()
-    heartbeat_thread = threading.Thread(target=process_events, args=(stop_consuming_messages,))
+    heartbeat_thread = threading.Thread(target=process_events, args=(stop_consuming_messages,), daemon=True)
     heartbeat_thread.start()
 
     while True:
@@ -62,14 +61,19 @@ def consume_messages():
             time.sleep(5)
             worker_channel, broker_connection = create_channel()
 
+        except HandledCriticalException as handled_critical_error:
+            base_logger.critical(f"Critical exception received. Exception: {handled_critical_error}")
+            orchestrator_channel.stop_consuming()
+            stop_consuming_messages.set()
+            broker_connection.close()
+            break
+
         except Exception as unhandled_critical_error:
             base_logger.critical(f"An unhandled exception received. Exception: {unhandled_critical_error}")
             stop_consuming_messages.set()
             orchestrator_channel.stop_consuming()
             broker_connection.close()
             break
-
-    heartbeat_thread.join()
 
 
 if __name__ == '__main__':

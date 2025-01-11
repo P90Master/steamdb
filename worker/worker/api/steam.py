@@ -44,9 +44,6 @@ class SteamAPI(abc.ABC):
 
 
 class SteamAPIClient(SteamAPI):
-    def __init__(self, token: str | None = None):
-        self._token: str | None = token
-
     @handle_response_exceptions(component=__name__, url=SteamAPI.get_app_list_url, method="GET")
     def get_app_list(self) -> dict[str, Any]:
         response = requests.get(self.get_app_list_url, params=None)

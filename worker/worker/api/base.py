@@ -7,6 +7,7 @@ from typing import Literal, Any, Type
 
 import aiohttp
 import requests
+from aiohttp import ClientResponseError, ClientConnectionError
 
 from worker.core.config import settings
 from worker.core.logger import get_logger
@@ -19,9 +20,13 @@ class APIClientException(Exception):
     pass
 
 
+class AuthenticationError(Exception):
+    pass
+
+
 DEFAULT_EXCEPTIONS_FOR_RETRY = (
-    aiohttp.client_exceptions.ClientResponseError,
-    aiohttp.client_exceptions.ClientConnectionError,
+    ClientResponseError,
+    ClientConnectionError,
     requests.exceptions.RequestException,
     requests.exceptions.HTTPError,
     APIClientException,
@@ -56,6 +61,12 @@ def handle_response_exceptions(
                 )
                 raise http_error
 
+            except AuthenticationError as auth_error:
+                logger.error(
+                    f"Received authentication error. Status code: {auth_error}."
+                )
+                raise auth_error
+
             except Exception as unknown_error:
                 logger.error(
                     f"Unhandled exception received: {unknown_error}"
@@ -77,6 +88,12 @@ def handle_response_exceptions(
                     f" Error: {http_error}"
                 )
                 raise http_error
+
+            except AuthenticationError as auth_error:
+                logger.error(
+                    f"Received authentication error. Status code: {auth_error}."
+                )
+                raise auth_error
 
             except Exception as unknown_error:
                 logger.error(
@@ -141,11 +158,19 @@ def retry(timeout: int = 5, attempts: int = 2, request_exceptions: tuple[Excepti
     return decorator
 
 
-class BaseAsyncSessionClient(abc.ABC):
+class AbstractAsyncSessionClient(abc.ABC):
     SESSION_CLASS = ...
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, client: 'BaseAsyncAPIClient', *args, **kwargs):
+        self._client = client
         self._session = self.SESSION_CLASS(*args, **kwargs)
+
+    async def close(self):
+        ...
+
+
+class BaseAsyncSessionClient(AbstractAsyncSessionClient):
+    SESSION_CLASS = aiohttp.ClientSession
 
     async def close(self):
         await self._session.close()
@@ -153,22 +178,30 @@ class BaseAsyncSessionClient(abc.ABC):
 
 class BaseAsyncAPIClient(abc.ABC):
     SESSION_CLIENT = BaseAsyncSessionClient
-    SESSION_CLIENT_FOR_SINGLE_REQUESTS = ...
+    CLIENT_FOR_SINGLE_REQUESTS = aiohttp.ClientSession
     API_CLIENT_EXCEPTION_CLASS = APIClientException
 
-    def __init__(self, token: str | None = None):
-        self._token: str | None = token
+    def __init__(self, client_id: str | None = None, client_secret: str | None = None, token_type: str = 'Bearer'):
+        self.client_id: str | None = client_id
+        self.client_secret: str | None = client_secret
+        self.access_token_type: str = token_type
+        self.access_token: str | None = None
+        self.refresh_token: str | None = None
         self._session: BaseAsyncSessionClient | None = None
         self._session_client: Type[BaseAsyncSessionClient] = self.SESSION_CLIENT
         self._session_lock: asyncio.Lock = asyncio.Lock()
         self._session_consumers_counter: int = 0
 
     async def __aenter__(self, *args, **kwargs) -> BaseAsyncSessionClient:
+        """
+        Designed SPECIFICALLY to work with only 1 backend endpoint
+        """
+
         async with self._session_lock:
             self._session_consumers_counter += 1
 
             if self._session_consumers_counter == 1:
-                self._session = self._session_client(*args, **kwargs)
+                self._session = self._session_client(self, *args, **kwargs)
                 return self._session
 
             if self._session is None:
@@ -190,3 +223,131 @@ class BaseAsyncAPIClient(abc.ABC):
                 self._session = None
 
         return False
+
+    @handle_response_exceptions(component=__name__, url=settings.OAUTH2_SERVER_LOGIN_URL, method="POST")
+    @retry(timeout=10, attempts=3)
+    async def login(self):
+        await self._request_for_login()
+
+    async def _request_for_login(self):
+        async with self.CLIENT_FOR_SINGLE_REQUESTS() as session:
+            auth_response = await session.post(
+                url=settings.OAUTH2_SERVER_LOGIN_URL,
+                json={
+                    'client_id': self.client_id,
+                    'client_secret': self.client_secret,
+                    'scopes': settings.ESSENTIAL_WORKER_CLIENT_SCOPES,
+                }
+            )
+
+            if auth_response.status != 200:
+                if auth_response.status in (401, 403):
+                    raise AuthenticationError(auth_response.status)
+
+                raise self.API_CLIENT_EXCEPTION_CLASS(auth_response.status)
+
+            response_data = await auth_response.json()
+            self.access_token = response_data['access_token']
+            self.refresh_token = response_data['refresh_token']
+
+    @handle_response_exceptions(component=__name__, url=settings.OAUTH2_SERVER_REFRESH_TOKEN_URL, method="POST")
+    @retry(timeout=10, attempts=3)
+    async def refresh_access_token(self):
+        await self._request_for_refresh_access_token()
+
+    async def _request_for_refresh_access_token(self):
+        if not self.refresh_token:
+            await self.login()
+
+        async with self.CLIENT_FOR_SINGLE_REQUESTS() as session:
+            auth_response = await session.post(
+                url=settings.OAUTH2_SERVER_REFRESH_TOKEN_URL,
+                json={
+                    'refresh_token': self.refresh_token,
+                    'scopes': settings.ESSENTIAL_WORKER_CLIENT_SCOPES,
+                }
+            )
+
+            if auth_response.status != 200:
+                if auth_response.status not in (401, 403):
+                    raise self.API_CLIENT_EXCEPTION_CLASS(auth_response.status)
+
+                await self.login()
+                auth_response = await session.post(
+                    url=settings.OAUTH2_SERVER_REFRESH_TOKEN_URL,
+                    json={
+                        'refresh_token': self.refresh_token,
+                        'scopes': settings.ESSENTIAL_WORKER_CLIENT_SCOPES,
+                    }
+                )
+                if auth_response.status in (401, 403):
+                    raise AuthenticationError(auth_response.status)
+
+                auth_response.raise_for_status()
+
+            response_data = await auth_response.json()
+            self.access_token = response_data['access_token']
+
+
+def authenticate(func: callable) -> callable:
+    @functools.wraps(func)
+    async def wrapper(self: BaseAsyncAPIClient, *args, **kwargs):
+        if not (self.client_id and self.client_secret):
+            raise AuthenticationError("Client ID and client secret must be set")
+
+        if not self.access_token:
+            await self.login()
+
+        headers = kwargs.get('headers', {})
+
+        try:
+            headers['Authorization'] = f"{self.access_token_type} {self.access_token}"
+            kwargs['headers'] = headers
+            return await func(self, *args, **kwargs)
+
+        except ClientResponseError as error:
+            if error.status in (401, 403):
+                await self.refresh_access_token()
+                headers['Authorization'] = f"{self.access_token_type} {self.access_token}"
+                kwargs['headers'] = headers
+                try:
+                    return await func(self, *args, **kwargs)
+                except ClientResponseError as error:
+                    raise AuthenticationError(error.status)
+
+            raise error
+
+    return wrapper
+
+def authenticate_session(func: callable) -> callable:
+    @functools.wraps(func)
+    async def wrapper(self: BaseAsyncSessionClient, *args, **kwargs):
+        client = self._client
+
+        if not (client.client_id and client.client_secret):
+            raise AuthenticationError("Client ID and client secret must be set")
+
+        if not client.access_token:
+            await client.login()
+
+        headers = kwargs.get('headers', {})
+
+        try:
+            headers['Authorization'] = f"{client.access_token_type} {client.access_token}"
+            kwargs['headers'] = headers
+            return await func(self, *args, **kwargs)
+
+
+        except ClientResponseError as error:
+            if error.status in (401, 403):
+                await client.refresh_access_token()
+                headers['Authorization'] = f"{client.access_token_type} {client.access_token}"
+                kwargs['headers'] = headers
+                try:
+                    return await func(self, *args, **kwargs)
+                except ClientResponseError as error:
+                    raise AuthenticationError(error.status)
+
+            raise error
+
+    return wrapper

@@ -76,6 +76,7 @@ def add_price_story_point_to_price_collection(
         )
 
     if not price_collection.price_story:
+        price_collection.price_story = []
         add_new_price_story_point()
         return price_collection
 
@@ -89,15 +90,21 @@ def add_price_story_point_to_price_collection(
 async def update_existed_price_collection(app: AppSchema, package: AppPackageDataSchema) -> AppInCountrySchema:
     price_collection = app.prices.get(package.country_code, AppInCountrySchema())
 
+    if not package.is_available:
+        if not price_collection.is_available:
+            return price_collection
+
+        price_collection.is_available = False
+        return price_collection
+
     price_collection.currency = package.currency or price_collection.currency
     price_collection.is_available = package.is_available \
         if package.is_available != price_collection.is_available else price_collection.is_available
     price_collection = add_price_story_point_to_price_collection(price_collection, package)
-
     return price_collection
 
 
-async def update_app(app: AppSchema, package: AppPackageDataSchema) -> AppSchema:
+async def update_app(app: AppSchema, package: AppPackageDataSchema):
     if package.is_available:
         app = await extract_common_app_fields_from_package_into_app(app, package)
 
@@ -107,17 +114,17 @@ async def update_app(app: AppSchema, package: AppPackageDataSchema) -> AppSchema
     else:
         app.prices[package.country_code] = await update_existed_price_collection(app, package)
 
-    return await app.update({'$set': app.model_dump(exclude_unset=True)})
+    await app.update({'$set': app.model_dump(exclude_unset=True)})
 
 
-async def handle_failed_package(package: AppPackageDataSchema) -> AppSchema:
+async def handle_failed_package(package: AppPackageDataSchema):
     app = await App.find_one(App.id == package.id)
 
     if app is None:
-        return AppSchema(id=package.id)
+        return
 
     package.is_available = False
-    return await update_app(app, package)
+    await update_app(app, package)
 
 
 async def handle_successful_package(package: AppPackageDataSchema) -> AppSchema:

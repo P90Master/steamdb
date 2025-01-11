@@ -24,21 +24,21 @@ def upgrade() -> None:
     sa.Column('pk', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('secret', sa.String(), nullable=False),
-    sa.Column('name', sa.String(), nullable=False),
-    sa.Column('description', sa.String(), nullable=False),
+    sa.Column('name', sa.String(), nullable=True),
+    sa.Column('description', sa.String(), nullable=True),
     sa.PrimaryKeyConstraint('pk')
     )
     op.create_index(op.f('ix_clients_id'), 'clients', ['id'], unique=True)
     op.create_table('roles',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('name', sa.String(), nullable=False),
-    sa.Column('description', sa.String(), nullable=False),
+    sa.Column('name', sa.String(), nullable=True),
+    sa.Column('description', sa.String(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('scopes',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('name', sa.String(), nullable=False),
-    sa.Column('description', sa.String(), nullable=False),
+    sa.Column('name', sa.String(), nullable=True),
+    sa.Column('description', sa.String(), nullable=True),
     sa.Column('action', sa.String(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
@@ -56,7 +56,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('token', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('client_pk', sa.Integer(), nullable=False),
+    sa.Column('client_pk', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['client_pk'], ['clients.pk'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -65,7 +65,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('token', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=True),
     sa.Column('expires_at', sa.DateTime(timezone=True), server_default=sa.text("now() + INTERVAL '86400 seconds'"), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -90,7 +90,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('token', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('client_pk', sa.Integer(), nullable=False),
+    sa.Column('client_pk', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['client_pk'], ['clients.pk'], ),
     sa.PrimaryKeyConstraint('id')
     )

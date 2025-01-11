@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy import select
+from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -101,7 +101,11 @@ async def token_refresh(request: RefreshTokenRequestSchema, db: AsyncSession = D
     token = (
         await db.execute(
             select(RefreshToken).where(
-                RefreshToken.token == request.refresh_token
+                and_(
+                    RefreshToken.is_active == True,
+                    RefreshToken.token == request.refresh_token,
+                    RefreshToken.expires_at > func.now()
+                )
             ).options(
                 joinedload(RefreshToken.client)
             )

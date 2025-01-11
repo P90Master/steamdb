@@ -36,4 +36,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if response.status_code != 200:
                 raise HTTPException(status_code=response.status_code, detail=response.json().get("detail"))
 
+            token_info = response.json()
+            if token_info.get("is_active") is False:
+                raise HTTPException(status_code=401, detail="Invalid token")
+
             return response.json()

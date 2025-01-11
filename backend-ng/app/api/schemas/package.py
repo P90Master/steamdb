@@ -14,7 +14,7 @@ __all__ = (
 
 class AppPackageDataSchema(BaseModel):
     id: int
-    name: str
+    name: str | None = None
     type: str | None = None  # TODO: Literal['game', 'trailer', 'dlc', ...]
     short_description: str | None = None
     is_free: bool | None = None
@@ -23,9 +23,9 @@ class AppPackageDataSchema(BaseModel):
     total_recommendations: int | None = None
     country_code: Annotated[str, Field(max_length=2)]
     is_available: Annotated[bool, Field(default=True)]
-    currency: Annotated[str | None, Field(max_length=3)]
-    price: Annotated[float | None, Field(gt=-0.01)]
-    discount: Annotated[int | None, Field(gt=-1, lt=100)]
+    currency: Annotated[str | None, Field(max_length=3, default=None)]
+    price: Annotated[float | None, Field(gt=-0.01, default=None)]
+    discount: Annotated[int | None, Field(gt=-1, lt=100, default=None)]
     timestamp: Annotated[datetime, Field(default_factory=lambda: datetime.now(timezone))]
 
     @field_validator('price', mode='after')

@@ -18,9 +18,9 @@ from app.models.utils import BaseDocument
 
 
 class AppPrice(BaseModel):
-    timestamp: datetime
-    price: Annotated[float, Field(gt=-0.01)]
-    discount: Annotated[int, Field(gt=-1, lt=100, default=0)]
+    timestamp: datetime | None = None
+    price: Annotated[float, Field(gt=-0.01)] | None = None
+    discount: Annotated[int, Field(gt=-1, lt=100, default=0)] | None = None
 
     @field_validator('timestamp', mode='after')
     @classmethod
@@ -33,8 +33,8 @@ class AppPrice(BaseModel):
 
 class AppInCountry(BaseModel):
     is_available: Annotated[bool, Field(default=True)]
-    currency: Annotated[str, Field(max_length=3)]
-    price_story: list[AppPrice]
+    currency: Annotated[str, Field(max_length=3)] | None = None
+    price_story: list[AppPrice] | None = None
 
 
 class App(BaseDocument):
@@ -45,7 +45,7 @@ class App(BaseDocument):
     name: Annotated[str, Indexed]
     type: str | None = None  # TODO: Literal['game', 'trailer', 'dlc', ...]
     short_description: str | None = None
-    is_free: bool
+    is_free: bool | None = None
     developers: list[str] | None = None
     publishers: list[str] | None = None
     total_recommendations: int | None = None

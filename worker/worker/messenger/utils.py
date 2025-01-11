@@ -10,6 +10,10 @@ class HandledException(Exception):
     pass
 
 
+class HandledCriticalException(Exception):
+    pass
+
+
 def trace_logs(decorated: callable) -> callable:
     @functools.wraps(decorated)
     def sync_wrapper(self, *args, **kwargs) -> Any:
@@ -23,6 +27,9 @@ def trace_logs(decorated: callable) -> callable:
             result = decorated(self, *args, **kwargs)
 
         except HandledException as handled_exception:
+            raise handled_exception
+
+        except HandledCriticalException as handled_exception:
             raise handled_exception
 
         except Exception as error:
@@ -45,6 +52,9 @@ def trace_logs(decorated: callable) -> callable:
             result = await decorated(self, *args, **kwargs)
 
         except HandledException as handled_exception:
+            raise handled_exception
+
+        except HandledCriticalException as handled_exception:
             raise handled_exception
 
         except Exception as error:
@@ -70,7 +80,7 @@ def convert_steam_app_data_response_to_backend_app_data_package(request_params: 
         package_data = build_failed_task_package_data(request_params)
 
     elif not (app_data := response.get(str(app_id), {}).get('data')):
-        logger.warn(f"Response to request for game id={app_id} is successful, but has no data")
+        logger.warning(f"Response to request for game id={app_id} is successful, but has no data")
         package_data = build_failed_task_package_data(request_params)
 
     else:
