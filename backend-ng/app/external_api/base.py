@@ -7,7 +7,7 @@ import httpx
 from httpx import HTTPStatusError
 
 from app.core.config import settings
-from .utils import APIClientException, AuthenticationError, handle_response_exceptions, retry
+from .utils import APIClientException, AuthenticationError, retry
 
 
 class BaseAsyncAPIClient(abc.ABC):
@@ -77,10 +77,8 @@ class BaseAsyncAPIClient(abc.ABC):
 
         return cls._refresh_token
 
-
-    @handle_response_exceptions(component=__name__, url=settings.OAUTH2_SERVER_LOGIN_URL, method="POST")
-    @retry(timeout=10, attempts=3)
     @classmethod
+    @retry(timeout=10, attempts=3)
     async def login(cls):
         await cls._request_for_login()
 
@@ -106,9 +104,8 @@ class BaseAsyncAPIClient(abc.ABC):
             cls._access_token = response_data['access_token']
             cls._refresh_token = response_data['refresh_token']
 
-    @handle_response_exceptions(component=__name__, url=settings.OAUTH2_SERVER_REFRESH_TOKEN_URL, method="POST")
-    @retry(timeout=10, attempts=3)
     @classmethod
+    @retry(timeout=10, attempts=3)
     async def refresh_access_token(cls):
         await cls._request_for_refresh_access_token()
 

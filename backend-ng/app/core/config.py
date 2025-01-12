@@ -133,9 +133,9 @@ class Settings(BaseSettings):
     @property
     def ORCHESTRATOR_TASKS_API_URL(self) -> str:  # type: ignore
         return AnyUrl.build(
-            scheme=self.OAUTH2_SERVER_PROTOCOL,
-            host=self.OAUTH2_SERVER_HOST,
-            port=self.OAUTH2_SERVER_PORT,
+            scheme=self.ORCHESTRATOR_PROTOCOL,
+            host=self.ORCHESTRATOR_HOST,
+            port=self.ORCHESTRATOR_PORT,
             path=f'api/{self.ORCHESTRATOR_API_VERSION}/tasks/',
         ).unicode_string()
 

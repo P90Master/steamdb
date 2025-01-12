@@ -28,7 +28,7 @@ essential_scopes = [
     {'name': 'Backend: All permissions', 'description': 'All permissions for backend service', 'action': 'backend/*'},
     {'name': 'Orchestrator: Tasks', 'description': 'Permission to register tasks and check its status', 'action': 'orchestrator/tasks'},
     {'name': 'Orchestrator: All permissions', 'description': 'All permissions for orchestrator service', 'action': 'orchestrator/*'},
-    {'name': '*', 'description': 'All permissions', 'action': '*/*'}
+    {'name': '*', 'description': 'All permissions', 'action': '*'}
 ]
 
 essential_roles = [
