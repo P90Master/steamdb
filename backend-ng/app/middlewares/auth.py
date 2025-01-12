@@ -31,7 +31,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         """
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(settings.OAUTH2_SERVER_URL, json={"access_token": token})
+            response = await client.post(settings.OAUTH2_SERVER_INTROSPECT_URL, json={"access_token": token})
 
             if response.status_code != 200:
                 raise HTTPException(status_code=response.status_code, detail=response.json().get("detail"))

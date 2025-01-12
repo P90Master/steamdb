@@ -11,7 +11,7 @@ stdout_handler = logging.StreamHandler(stream=sys.stdout)
 stdout_handler.setFormatter(formatter)
 
 
-def get_logger(settings: BaseSettings, name: str = 'root') -> logging.Logger:
+def get_logger(settings: BaseSettings, name: str = 'core') -> logging.Logger:
     logger = logging.getLogger(name)
     logger.propagate = False
 

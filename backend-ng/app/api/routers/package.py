@@ -127,21 +127,23 @@ async def handle_failed_package(package: AppPackageDataSchema):
     await update_app(app, package)
 
 
-async def handle_successful_package(package: AppPackageDataSchema) -> AppSchema:
+async def handle_successful_package(package: AppPackageDataSchema):
     app = await App.find_one(App.id == package.id)
     package.is_available = True
 
     if app is None:
         new_app_data = await build_new_app_data(package)
-        return await App(**new_app_data.model_dump()).insert()  # type: ignore
+        await App(**new_app_data.model_dump()).insert()  # type: ignore
 
-    return await update_app(app, package)
+    else:
+        await update_app(app, package)
 
 
 @router.post('', status_code=201)
-async def handle_app_package(package: AppPackageSchema, _ = Depends(Permissions.is_worker)):
+async def handle_app_package(package: AppPackageSchema, _ = Depends(Permissions.is_worker)) -> AppPackageSchema:
     if package.is_success:
         await handle_successful_package(package.data)
-
     else:
         await handle_failed_package(package.data)
+
+    return package

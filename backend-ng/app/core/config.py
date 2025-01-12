@@ -45,12 +45,32 @@ class Settings(BaseSettings):
 
     @computed_field
     @property
-    def OAUTH2_SERVER_URL(self) -> str:  # type: ignore
+    def OAUTH2_SERVER_INTROSPECT_URL(self) -> str:  # type: ignore
         return AnyUrl.build(
             scheme=self.OAUTH2_SERVER_PROTOCOL,
             host=self.OAUTH2_SERVER_HOST,
             port=self.OAUTH2_SERVER_PORT,
             path='api/oauth2/introspect',
+        ).unicode_string()
+
+    @computed_field
+    @property
+    def OAUTH2_SERVER_LOGIN_URL(self) -> str:  # type: ignore
+        return AnyUrl.build(
+            scheme=self.OAUTH2_SERVER_PROTOCOL,
+            host=self.OAUTH2_SERVER_HOST,
+            port=self.OAUTH2_SERVER_PORT,
+            path='api/oauth2/token',
+        ).unicode_string()
+
+    @computed_field
+    @property
+    def OAUTH2_SERVER_REFRESH_TOKEN_URL(self) -> str:  # type: ignore
+        return AnyUrl.build(
+            scheme=self.OAUTH2_SERVER_PROTOCOL,
+            host=self.OAUTH2_SERVER_HOST,
+            port=self.OAUTH2_SERVER_PORT,
+            path='api/oauth2/token_refresh',
         ).unicode_string()
 
     FRONTEND_HOST: str = 'http://localhost:3000'
