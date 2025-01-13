@@ -124,6 +124,82 @@ services:
       - common
       - backend
 
+  # fulltext search ##############################################################
+
+  ftsearch-index:
+    image: elasticsearch:8.4.3
+    restart: always
+    expose:
+      - "${FTSEARCH_ELASTICSEARCH_PORT:-9200}"
+      - "9300"
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=$FTSEARCH_ELASTICSEARCH_PASSWORD
+      - xpack.security.enabled=true
+      - xpack.license.self_generated.type=basic
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms${FTSEARCH_ELASTICSEARCH_MEMORY:-512m} -Xmx${FTSEARCH_ELASTICSEARCH_MEMORY:-512m}"
+    volumes:
+      - ftsearch-index-data:/usr/share/elasticsearch/data
+    networks:
+      - backend
+
+  ftsearch-index-gui:
+    image: docker.elastic.co/kibana/kibana:8.4.3
+    environment:
+      ELASTICSEARCH_HOSTS: "http://{FTSEARCH_ELASTICSEARCH_HOST:-ftsearch-index}:{FTSEARCH_ELASTICSEARCH_PORT:-9200}"
+      ELASTICSEARCH_USERNAME: ${FTSEARCH_ELASTICSEARCH_USER}
+      ELASTICSEARCH_PASSWORD: ${FTSEARCH_ELASTICSEARCH_PASSWORD}
+    ports:
+      - "5601:5601"
+    networks:
+      - backend
+
+  state-storage:
+    image: redis:latest
+    command: redis-server --requirepass ${FTSEARCH_STATE_STORAGE_PASSWORD}
+    expose:
+      - "${FTSEARCH_STATE_STORAGE_PORT:-6379}"
+    volumes:
+      - ftsearch-state-storage-data:/data
+    networks:
+      - backend
+
+  etl:
+    build:
+      context: etl/
+    environment:
+      DEBUG: ${DEBUG}
+
+      MONGO_HOST: ${MONGO_HOST}
+      MONGO_PORT: ${MONGO_PORT}
+      MONGO_USER: ${MONGO_USER}
+      MONGO_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_DB: ${MONGO_DB}
+
+      STATE_STORAGE_PROTOCOL: ${FTSEARCH_STATE_STORAGE_PROTOCOL}
+      STATE_STORAGE_HOST: ${FTSEARCH_STATE_STORAGE_HOST}
+      STATE_STORAGE_PORT: ${FTSEARCH_STATE_STORAGE_PORT}
+      STATE_STORAGE_PASSWORD: ${FTSEARCH_STATE_STORAGE_PASSWORD}
+
+      ELASTICSEARCH_HOST: ${FTSEARCH_ELASTICSEARCH_HOST}
+      ELASTICSEARCH_PORT: ${FTSEARCH_ELASTICSEARCH_PORT}
+      ELASTICSEARCH_USER: ${FTSEARCH_ELASTICSEARCH_USER}
+      ELASTICSEARCH_PASSWORD: ${FTSEARCH_ELASTICSEARCH_PASSWORD}
+      ELASTICSEARCH_INDEX: ${FTSEARCH_ELASTICSEARCH_INDEX}
+      BATCH_SIZE: ${FTSEARCH_ETL_BATCH_SIZE}
+    deploy:
+      restart_policy:
+        condition: always
+        delay: 5s
+        window: 120s
+    depends_on:
+      - ftsearch-index
+      - ftsearch-state-storage
+      - db
+    networks:
+      - backend
+
   # backend #########################################################
 
   backend:
@@ -405,6 +481,8 @@ volumes:
   mongo_data:
   auth-db-data:
   backend-db-data:
+  ftsearch-index-data:
+  ftsearch-state-storage-data:
   worker_logs:
   orchestrator-db-data:
   orchestrator-logs:
