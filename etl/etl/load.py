@@ -2,6 +2,7 @@ from elasticsearch import Elasticsearch
 from redis import Redis
 
 from etl.core.config import settings
+from etl.utils import load_json
 from etl.index import Index
 from etl.index.backend import ElasticsearchIndexBackend
 from etl.pipeline.components.loader import Loader
@@ -20,7 +21,9 @@ if __name__ == "__main__":
         settings.ELASTICSEARCH_URL,
         http_auth=(settings.ELASTICSEARCH_USER, settings.ELASTICSEARCH_PASSWORD)
     )
-    index_backend = ElasticsearchIndexBackend(es, settings.ELASTICSEARCH_INDEX_NAME)
+    index_backend = ElasticsearchIndexBackend(es, settings.ELASTICSEARCH_INDEX)
+    es_index = load_json(settings.ES_INDEX_PATH)
+    index_backend.ensure_index(es_index)
     index = Index(index_backend)
 
     loader = Loader(index=index, state_storage=state_storage, input_queue=load_queue)

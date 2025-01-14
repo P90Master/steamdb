@@ -29,6 +29,7 @@ class Transformer(PipelineComponent):
                     IndexedApp(
                         id=app.id,
                         name=app.name,
+                        updated_at=app.updated_at,
                         short_description=app.short_description,
                         developers=app.developers,
                         publishers=app.publishers,

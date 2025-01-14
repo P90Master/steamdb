@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     ELASTICSEARCH_USER: str = 'elastic'
     ELASTICSEARCH_PASSWORD: str = 'CHANGE-ME'
     ELASTICSEARCH_INDEX: str = 'steam-apps'
+    ELASTICSEARCH_INDEX_PATH: str = 'es_index.json'
 
     @computed_field
     @property

@@ -63,6 +63,7 @@ class Extractor(PipelineComponent):
         return App(
             id=app_dump.get('id'),
             name=app_dump.get('name'),
+            updated_at=app_dump.get('updated_at'),
             type=app_dump.get('type'),
             short_description=app_dump.get('short_description'),
             is_free=app_dump.get('is_free'),

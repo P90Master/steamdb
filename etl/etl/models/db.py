@@ -20,6 +20,7 @@ class AppInCountry:
 class App:
     id: int
     name: str
+    updated_at: datetime
     type: str | None = None
     short_description: str | None = None
     is_free: bool | None = None

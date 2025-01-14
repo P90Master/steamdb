@@ -18,7 +18,7 @@ class ElasticsearchIndexBackend(IndexBackend):
         self._index: str = index_name
 
     @backoff(start_sleep_time=5.0, max_sleep_time=60.0, logger=logger)
-    def ensure_index(self, index_body=''):
+    def ensure_index(self, index_body: dict[str, Any] | None = None):
         try:
             self._es.indices.create(self._index, body=index_body)
 
