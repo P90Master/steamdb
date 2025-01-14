@@ -3,12 +3,13 @@ from typing import Any
 from elastic_transport import TransportError
 from elasticsearch import Elasticsearch
 
+from etl.index import IndexBackend
 from etl.utils import backoff
 from etl.core.config import settings
 from etl.core.logger import get_logger
 
 
-class ElasticsearchIndexBackend:
+class ElasticsearchIndexBackend(IndexBackend):
 
     logger = get_logger(settings, 'index.elasticsearch')
 

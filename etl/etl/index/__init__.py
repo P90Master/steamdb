@@ -1,11 +1,10 @@
 import logging
-from typing import ClassVar
+from typing import ClassVar, Any
 
 from etl.core.logger import get_logger
 from etl.core.config import settings
 from etl.index.types import IndexBackend
 from etl.utils import backoff
-from etl.models import IndexedApp
 
 
 class Index:
@@ -16,8 +15,8 @@ class Index:
         self._backend: IndexBackend = backend
 
     @backoff(start_sleep_time=5, max_sleep_time=60.0, logger=logger)
-    def bulk_update(self, apps: list[IndexedApp]):
+    def bulk_update(self, apps: list[dict[str, Any]]):
         if not apps:
             return
 
-        self._backend.bulk_update([app.__dict__ for app in apps])
+        self._backend.bulk_update(apps)

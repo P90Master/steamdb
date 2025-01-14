@@ -16,6 +16,7 @@ class AppInCountry:
     price_story: list[AppPrice] | None = None
 
 
+@dataclass
 class App:
     id: int
     name: str

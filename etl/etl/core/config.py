@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     MONGO_HOST: str = 'mongodb'
     MONGO_PORT: int = 27017
     MONGO_DB: str = 'apps'
+    MONGO_COLLECTION: str = 'apps'
     MONGO_USER: str = 'admin'
     MONGO_PASSWORD: str = 'admin'
 
@@ -51,6 +52,7 @@ class Settings(BaseSettings):
                 scheme='redis',
                 host=self.STATE_STORAGE_HOST,
                 port=self.STATE_STORAGE_PORT,
+                password=self.STATE_STORAGE_PASSWORD,
             ).unicode_string()
 
         return AnyUrl.build(
