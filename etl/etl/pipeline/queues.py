@@ -1,5 +1,7 @@
+import json
 import time
-from queue import Queue, Empty
+from multiprocessing import Queue
+from queue import Empty
 from typing import Any
 
 from redis import Redis
@@ -38,7 +40,6 @@ class InMemoryQueue(AbstractQueue):
 
         return batch
 
-
     def put(self, item: Any):
         self._queue.put(item)
 
@@ -73,7 +74,7 @@ class RedisQueue(AbstractQueue):
 
         batch: list[Any] = [self.get()]
 
-        result = self._redis.lmpop(1, keys_list, direction="RIGHT", count=amount - 1)
+        result = self._redis.lmpop(1, *keys_list, direction="RIGHT", count=amount - 1)
         if result:
             batch.extend(item.decode("utf-8") for item in result[1])
 
@@ -84,7 +85,7 @@ class RedisQueue(AbstractQueue):
     def put(self, item: Any) -> None:
         while True:
             if self._redis.llen(self._queue_name) < self._max_size:
-                self._redis.lpush(self._queue_name, item)
+                self._redis.lpush(self._queue_name, json.dumps(item).encode('utf-8'))
                 break
 
             else:

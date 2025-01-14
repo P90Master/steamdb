@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from etl.utils import backoff
-from orchestrator.celery.tasks.scheduled import priority
 from .types import StateStorageBackend
 from .backend import RedisStateStorageBackend
 from etl.core.logger import get_logger

@@ -33,9 +33,10 @@ class Extractor(PipelineComponent):
                 random_sleep()
                 continue
 
-            self.logger.debug(f'Successfully extracted {len(apps)} apps from DB')
+            self.logger.info(f'Successfully extracted {len(apps)} apps from DB')
             last_loaded = apps[-1].get('updated_at', last_loaded)
             serializer.send(apps)
+            random_sleep(0.5, 2.0)
 
     @coroutine
     def serialize(self, pusher: callable):

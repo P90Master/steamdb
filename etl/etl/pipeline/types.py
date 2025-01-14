@@ -1,4 +1,5 @@
 import abc
+import time
 from typing import Any
 
 from etl.core.config import settings
@@ -38,6 +39,7 @@ class PipelineComponent:
 
     def __call__(self, *args, **kwargs):
         self.stop()
+        time.sleep(65)  # Ensure that if there are parallel processes, they will read new status and stop
         self.start()
 
     def start(self):
@@ -47,6 +49,7 @@ class PipelineComponent:
 
         else:
             self.state_storage.set_running_status()
+            self.logger.info(f'{self.__class__.__name__} started')
 
         # logic here
 

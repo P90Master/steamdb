@@ -11,18 +11,20 @@ from etl.state_storage import RedisStateStorageBackend, StateStorage
 
 
 if __name__ == "__main__":
-    redis = Redis.from_url(settings.STATE_STORAGE_URL)
-    load_queue = RedisQueue(redis, service_name="loader")
+    redis_for_queue = Redis.from_url(settings.STATE_STORAGE_URL)
+    load_queue = RedisQueue(redis_for_queue, service_name="loader")
+
     # TODO: separate state storage and queue
-    state_storage_backend = RedisStateStorageBackend(redis)
+    redis_for_state = Redis.from_url(settings.STATE_STORAGE_URL)
+    state_storage_backend = RedisStateStorageBackend(redis_for_state)
     state_storage = StateStorage(state_storage_backend, service_name="loader")
 
     es = Elasticsearch(
-        settings.ELASTICSEARCH_URL,
-        http_auth=(settings.ELASTICSEARCH_USER, settings.ELASTICSEARCH_PASSWORD)
+        [settings.ELASTICSEARCH_URL],
+        basic_auth=(settings.ELASTICSEARCH_USER, settings.ELASTICSEARCH_PASSWORD)
     )
     index_backend = ElasticsearchIndexBackend(es, settings.ELASTICSEARCH_INDEX)
-    es_index = load_json(settings.ES_INDEX_PATH)
+    es_index = load_json(settings.ELASTICSEARCH_INDEX_PATH)
     index_backend.ensure_index(es_index)
     index = Index(index_backend)
 

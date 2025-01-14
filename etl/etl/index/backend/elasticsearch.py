@@ -1,6 +1,6 @@
-from typing import Any
+import logging
+from typing import Any, ClassVar
 
-from elastic_transport import TransportError
 from elasticsearch import Elasticsearch
 
 from etl.index import IndexBackend
@@ -11,7 +11,7 @@ from etl.core.logger import get_logger
 
 class ElasticsearchIndexBackend(IndexBackend):
 
-    logger = get_logger(settings, 'index.elasticsearch')
+    logger: ClassVar[logging.Logger] = get_logger(settings, 'elasticsearch')
 
     def __init__(self, es: Elasticsearch, index_name: str):
         self._es: Elasticsearch = es
@@ -19,12 +19,10 @@ class ElasticsearchIndexBackend(IndexBackend):
 
     @backoff(start_sleep_time=5.0, max_sleep_time=60.0, logger=logger)
     def ensure_index(self, index_body: dict[str, Any] | None = None):
-        try:
-            self._es.indices.create(self._index, body=index_body)
+        if not self._es.indices.exists(index=self._index):
+            self._es.indices.create(index=self._index, body=index_body)
 
-        except TransportError:
-            pass
-
+    @backoff(start_sleep_time=5.0, max_sleep_time=60.0, logger=logger)
     def bulk_update(self, apps: list[dict[str, Any]]):
         if not apps:
             return
@@ -41,5 +39,3 @@ class ElasticsearchIndexBackend(IndexBackend):
         response = self._es.bulk(body=actions)
         if errors := response.get('errors'):
             raise IndexError(f'Received errors when trying to bulk update index: {errors}')
-
-        return response

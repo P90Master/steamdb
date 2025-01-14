@@ -36,11 +36,15 @@ class Transformer(PipelineComponent):
                     )
                 )
 
+            self.logger.info(f'Successfully transformed {len(apps)} apps')
+
     @coroutine
     def serialize(self, pusher: callable):
         while True:
             app: IndexedApp = (yield)
-            pusher.send(app.__dict__)
+            app_dump = app.__dict__
+            app_dump['updated_at'] = app_dump['updated_at'].isoformat()
+            pusher.send(app_dump)
 
     @coroutine
     def push(self):

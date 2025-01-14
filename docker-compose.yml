@@ -135,7 +135,7 @@ services:
     environment:
       - discovery.type=single-node
       - ELASTIC_PASSWORD=$FTSEARCH_ELASTICSEARCH_PASSWORD
-      - xpack.security.enabled=true
+      - xpack.security.enabled=false
       - xpack.license.self_generated.type=basic
       - bootstrap.memory_lock=true
       - "ES_JAVA_OPTS=-Xms${FTSEARCH_ELASTICSEARCH_MEMORY:-512m} -Xmx${FTSEARCH_ELASTICSEARCH_MEMORY:-512m}"
@@ -147,7 +147,7 @@ services:
   ftsearch-index-gui:
     image: docker.elastic.co/kibana/kibana:8.4.3
     environment:
-      ELASTICSEARCH_HOSTS: "http://{FTSEARCH_ELASTICSEARCH_HOST:-ftsearch-index}:{FTSEARCH_ELASTICSEARCH_PORT:-9200}"
+      ELASTICSEARCH_HOSTS: "http://${FTSEARCH_ELASTICSEARCH_HOST:-ftsearch-index}:${FTSEARCH_ELASTICSEARCH_PORT:-9200}"
       ELASTICSEARCH_USERNAME: ${FTSEARCH_ELASTICSEARCH_USER}
       ELASTICSEARCH_PASSWORD: ${FTSEARCH_ELASTICSEARCH_PASSWORD}
     ports:
@@ -155,17 +155,17 @@ services:
     networks:
       - backend
 
-  state-storage:
+  ftsearch-etl-state-storage:
     image: redis:latest
     command: redis-server --requirepass ${FTSEARCH_STATE_STORAGE_PASSWORD}
     expose:
       - "${FTSEARCH_STATE_STORAGE_PORT:-6379}"
     volumes:
-      - ftsearch-state-storage-data:/data
+      - ftsearch-etl-state-storage-data:/data
     networks:
       - backend
 
-  etl:
+  ftsearch-etl:
     build:
       context: etl/
     environment:
@@ -195,7 +195,7 @@ services:
         window: 120s
     depends_on:
       - ftsearch-index
-      - ftsearch-state-storage
+      - ftsearch-etl-state-storage
       - db
     networks:
       - backend
@@ -482,7 +482,7 @@ volumes:
   auth-db-data:
   backend-db-data:
   ftsearch-index-data:
-  ftsearch-state-storage-data:
+  ftsearch-etl-state-storage-data:
   worker_logs:
   orchestrator-db-data:
   orchestrator-logs:

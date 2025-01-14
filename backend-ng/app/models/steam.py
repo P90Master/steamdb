@@ -43,6 +43,7 @@ class App(BaseDocument):
 
     id: Annotated[int, Indexed]
     name: Annotated[str, Indexed]
+    updated_at: Annotated[datetime, Field(default_factory=lambda: datetime.now(timezone))]
     type: str | None = None  # TODO: Literal['game', 'trailer', 'dlc', ...]
     short_description: str | None = None
     is_free: bool | None = None
