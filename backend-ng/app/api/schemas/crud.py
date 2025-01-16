@@ -116,6 +116,7 @@ class PaginatedAppListSchema(BaseModel):
 class AppEditingSchema(BaseModel):
     name: str | None = None
     type: str | None = None
+    updated_at: Annotated[datetime, Field(default_factory=lambda: datetime.now(timezone))]
     short_description: str | None = None
     is_free: bool | None = None
     developers: list[str] | None = None

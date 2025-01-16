@@ -15,6 +15,7 @@ __all__ = (
 class AppPackageDataSchema(BaseModel):
     id: int
     name: str | None = None
+    updated_at: Annotated[datetime, Field(default_factory=lambda: datetime.now(timezone))]
     type: str | None = None  # TODO: Literal['game', 'trailer', 'dlc', ...]
     short_description: str | None = None
     is_free: bool | None = None
