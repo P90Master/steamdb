@@ -38,17 +38,23 @@
     "properties": {
       "name": {
         "type": "text",
-        "analyzer": "en"
+        "analyzer": "en",
+        "search_analyzer": "en"
       },
       "short_description": {
         "type": "text",
-        "analyzer": "en"
+        "analyzer": "en",
+        "search_analyzer": "en"
       },
       "developers": {
-        "type": "keyword"
+        "type": "text",
+        "analyzer": "en",
+        "search_analyzer": "en"
       },
       "publishers": {
-        "type": "keyword"
+        "type": "text",
+        "analyzer": "en",
+        "search_analyzer": "en"
       }
     }
   }

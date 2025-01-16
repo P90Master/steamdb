@@ -11,7 +11,7 @@ from etl.core.logger import get_logger
 
 class ElasticsearchIndexBackend(IndexBackend):
 
-    logger: ClassVar[logging.Logger] = get_logger(settings, 'elasticsearch')
+    logger: ClassVar[logging.Logger] = get_logger(settings, 'elastic')
 
     def __init__(self, es: Elasticsearch, index_name: str):
         self._es: Elasticsearch = es
@@ -22,19 +22,21 @@ class ElasticsearchIndexBackend(IndexBackend):
         if not self._es.indices.exists(index=self._index):
             self._es.indices.create(index=self._index, body=index_body)
 
-    @backoff(start_sleep_time=5.0, max_sleep_time=60.0, logger=logger)
     def bulk_update(self, apps: list[dict[str, Any]]):
         if not apps:
             return
 
-        actions: list[dict[str, Any]] = [
-            {
-                "_op_type": "index",
-                "_index": self._index,
-                "_id": app['id'],
-                "_source": app
-            } for app in apps
-        ]
+        actions: list[dict[str, Any]] = []
+        for app in apps:
+            actions.append(
+                {
+                    "index": {
+                        "_index": self._index,
+                        "_id": app['id'],
+                    }
+                }
+            )
+            actions.append(app)
 
         response = self._es.bulk(body=actions)
         if errors := response.get('errors'):

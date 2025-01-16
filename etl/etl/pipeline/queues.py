@@ -1,5 +1,6 @@
 import json
 import time
+from json import JSONDecodeError
 from multiprocessing import Queue
 from queue import Empty
 from typing import Any
@@ -16,6 +17,13 @@ IN_MEMORY_QUEUE_MAX_SIZE = 100
 REDIS_QUEUE_MAX_SIZE = 100
 
 
+def try_json_load(value: Any) -> Any:
+    try:
+        return json.loads(value)
+    except JSONDecodeError:
+        return value
+
+
 class InMemoryQueue(AbstractQueue):
     def __init__(self, max_size: int = IN_MEMORY_QUEUE_MAX_SIZE):
         self._queue = Queue(maxsize=max_size)
@@ -23,7 +31,7 @@ class InMemoryQueue(AbstractQueue):
     def get(self) -> Any:
         return self._queue.get()
 
-    def get_batch(self, amount: int = 1, wait_full: bool = False) -> list[Any]:
+    def get_batch(self, amount: int = 1, wait_full: bool = False, timeout: int = 5) -> list[Any]:
         if amount < 1:
             return []
 
@@ -31,6 +39,7 @@ class InMemoryQueue(AbstractQueue):
             return [self._queue.get() for _ in range(amount)]
 
         batch = [self._queue.get()]
+        time.sleep(timeout)  # wait for retrieve more items at once
 
         try:
             for _ in range(amount - 1):
@@ -60,10 +69,10 @@ class RedisQueue(AbstractQueue):
         while True:
             result = self._redis.brpop(keys_list, timeout=5)
             if result:
-                return result[1].decode("utf-8")
+                return try_json_load(result[1].decode("utf-8"))
 
     @backoff(start_sleep_time=5.0, max_sleep_time=60.0, logger=logger)
-    def get_batch(self, amount: int = 1, wait_full: bool = False) -> list[Any]:
+    def get_batch(self, amount: int = 1, wait_full: bool = False, timeout: int = 5) -> list[Any]:
         if amount < 1:
             return []
 
@@ -73,10 +82,12 @@ class RedisQueue(AbstractQueue):
             return [self.get() for _ in range(amount)]
 
         batch: list[Any] = [self.get()]
+        time.sleep(timeout)  # wait for retrieve more items at once
 
         result = self._redis.lmpop(1, *keys_list, direction="RIGHT", count=amount - 1)
+
         if result:
-            batch.extend(item.decode("utf-8") for item in result[1])
+            batch.extend(try_json_load(item.decode("utf-8")) for item in result[1])
 
         return batch
 

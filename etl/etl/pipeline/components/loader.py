@@ -19,6 +19,7 @@ class Loader(PipelineComponent):
     @backoff(start_sleep_time=5.0, max_sleep_time=60.0, logger=logger)
     def pull(self, loader: callable):
         while self.state_storage.is_running:
+            # FIXME: return to queue if loading fails
             apps: list[dict[str, Any]] = self.input_queue.get_batch(amount=10)
             loader.send(apps)
 

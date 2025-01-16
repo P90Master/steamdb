@@ -13,7 +13,7 @@ class AbstractQueue:
         ...
 
     @abc.abstractmethod
-    def get_batch(self, amount: int = 1, wait_full: bool = False) -> list[Any]:
+    def get_batch(self, amount: int = 1, wait_full: bool = False, timeout: int = 5) -> list[Any]:
         ...
 
     @abc.abstractmethod

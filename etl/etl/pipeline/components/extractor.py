@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 from typing import Any, ClassVar
 
 from pymongo.collection import Collection
@@ -30,11 +31,12 @@ class Extractor(PipelineComponent):
             )
             if not apps:
                 self.logger.debug('No new apps found in DB')
-                random_sleep()
+                random_sleep(300, 1200)
                 continue
 
             self.logger.info(f'Successfully extracted {len(apps)} apps from DB')
-            last_loaded = apps[-1].get('updated_at', last_loaded)
+            new_last_loaded = apps[-1].get('updated_at', last_loaded)
+            last_loaded = new_last_loaded if new_last_loaded != last_loaded else last_loaded + timedelta(seconds=1)
             serializer.send(apps)
             random_sleep(0.5, 2.0)
 
