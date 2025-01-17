@@ -206,7 +206,7 @@ services:
 
   backend:
     build:
-      context: backend-ng/
+      context: backend/
     environment:
       DEBUG: ${DEBUG}
       API_VERSION: ${BACKEND_API_VERSION}
@@ -248,62 +248,6 @@ services:
     networks:
       - backend
       - common
-
-#  backend:
-#    build:
-#      context: backend/
-#    environment:
-#      SECRET_KEY: ${BACKEND_SECRET_KEY}
-#      DEBUG: ${DEBUG}
-#      API_VERSION: ${BACKEND_API_VERSION}
-#      DEFAULT_COUNTRY_CODE: ${DEFAULT_COUNTRY_CODE}
-#
-#      ORCHESTRATOR_PROTOCOL: ${ORCHESTRATOR_PROTOCOL}
-#      ORCHESTRATOR_HOST: ${ORCHESTRATOR_HOST}
-#      ORCHESTRATOR_PORT: ${ORCHESTRATOR_PORT}
-#      ORCHESTRATOR_API_VERSION: ${ORCHESTRATOR_API_VERSION}
-#
-#      BACKEND_DB_HOST: ${BACKEND_DB_HOST}
-#      BACKEND_DB_PORT: ${BACKEND_DB_PORT}
-#      BACKEND_DB_USER: ${BACKEND_DB_USER}
-#      BACKEND_DB_PASSWORD: ${BACKEND_DB_PASSWORD}
-#      BACKEND_DB_NAME: ${BACKEND_DB_NAME}
-#
-#      CACHE_HOST: ${BACKEND_CACHE_HOST}
-#      CACHE_PORT: ${BACKEND_CACHE_PORT}
-#      CACHE_TIMEOUT: ${BACKEND_CACHE_TIMEOUT}
-#
-#      MONGO_HOST: ${MONGO_HOST}
-#      MONGO_PORT: ${MONGO_PORT}
-#      MONGO_USER: ${MONGO_USER}
-#      MONGO_PASSWORD: ${MONGO_PASSWORD}
-#      MONGO_ALIAS: ${MONGO_ALIAS}
-#      MONGO_DB: ${MONGO_DB}
-#    restart: always
-#    depends_on:
-#      - db
-#      - backend-db
-#      - backend-cache
-#    ports:
-#      - "${BACKEND_PORT:-8000}:8000"
-#    networks:
-#      - common
-#      - backend
-#
-#  backend-db:
-#    # TODO: configure resources consumption
-#    image: postgres:16
-#    restart: always
-#    environment:
-#      POSTGRES_USER: ${BACKEND_DB_USER}
-#      POSTGRES_PASSWORD: ${BACKEND_DB_PASSWORD}
-#      POSTGRES_DB: ${BACKEND_DB_NAME}
-#    expose:
-#      - "${BACKEND_DB_PORT:-5432}"
-#    volumes:
-#      - backend-db-data:/var/lib/postgresql/data
-#    networks:
-#      - backend
 
   backend-cache:
     image: "redis:alpine"

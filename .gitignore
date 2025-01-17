@@ -11,7 +11,7 @@ __pycache__/
 *~
 
 # Media
-backend/foodgram/media/
+backend-old/foodgram/media/
 
 # Distribution / packaging
 .Python
@@ -112,7 +112,7 @@ celerybeat.pid
 infra/.env
 .venv
 env/
-backend/venv/
+backend-old/venv/
 ENV/
 env.bak/
 venv.bak/

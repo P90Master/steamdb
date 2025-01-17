@@ -1,13 +1,15 @@
-FROM python:3.9
+FROM python:3.12
 
 WORKDIR /backend
+COPY . .
 
 COPY requirements.txt .
+
+# TODO: apt update
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
     rm requirements.txt
 
-COPY backend/ .
+RUN chmod +x entrypoint.sh
 
-# TODO: properly configure gunicorn
-ENTRYPOINT python3 manage.py migrate && gunicorn backend.wsgi:application --bind 0:8000
+ENTRYPOINT ./entrypoint.sh

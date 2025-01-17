@@ -1,0 +1,28 @@
+version: 1
+disable_existing_loggers: False
+
+formatters:
+  default:
+    format: '[%(name)s %(asctime)s %(levelname)s] %(message)s'
+
+handlers:
+  common_stdout:
+    class: logging.StreamHandler
+    formatter: default
+    level: INFO
+
+loggers:
+  uvicorn:
+    level: INFO
+    handlers: [common_stdout]
+    propagate: no
+
+  uvicorn.error:
+    level: INFO
+    handlers: [common_stdout]
+    propagate: no
+
+  uvicorn.access:
+    level: INFO
+    handlers: [common_stdout]
+    propagate: no
