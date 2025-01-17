@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 import redis.asyncio as redis
 from fastapi import FastAPI
 from beanie import init_beanie
+from elasticsearch import AsyncElasticsearch
 from motor.motor_asyncio import AsyncIOMotorClient
 from redis.asyncio import ConnectionPool
 from starlette.middleware.cors import CORSMiddleware
@@ -10,6 +11,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logger import get_logger
 from app.utils.cache import CacheManager, RedisBackend
+from app.utils.ftsearch_index import Index, ElasticsearchIndexBackend
 from app.models import DOCUMENTS
 from app.middlewares import ReplaceQueryParamsMiddleware, AuthMiddleware, ExceptionHandlerMiddleware
 from app.external_api import OrchestratorAPIClient
@@ -34,10 +36,18 @@ async def lifespan(app_: FastAPI):
         client_secret=settings.ESSENTIAL_BACKEND_CLIENT_SECRET
     )
 
+    es = AsyncElasticsearch(
+        hosts=[settings.ELASTICSEARCH_URL],
+        basic_auth=(settings.ELASTICSEARCH_USER, settings.ELASTICSEARCH_PASSWORD)
+    )
+    index_backend = ElasticsearchIndexBackend(es, settings.ELASTICSEARCH_INDEX)
+    Index.init(index_backend)
+
     yield
 
     OrchestratorAPIClient.reset()
     CacheManager.reset()
+    Index.reset()
     app_.db_client.close()
     await cache_pool.disconnect()
 

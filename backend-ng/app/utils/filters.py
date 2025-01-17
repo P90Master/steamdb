@@ -40,7 +40,7 @@ class Filter(BaseFilterModel):
         original_filter: type["BaseFilterModel"]
         custom_ordering_fields: tuple[str] = ()
 
-    def sort(self, query: FindMany[FindType]) -> FindMany[FindType]:
+    async def sort(self, query: FindMany[FindType]) -> FindMany[FindType]:
         if not self.ordering_values:
             return query
 
@@ -63,7 +63,7 @@ class Filter(BaseFilterModel):
             common_ordering_by_fields.append((field_name, direction))
 
         for ordering_method, direction in custom_ordering_methods:
-            query = ordering_method(query, direction)
+            query = await ordering_method(query, direction)
 
         return query.sort(*common_ordering_by_fields)
 
@@ -192,7 +192,7 @@ class Filter(BaseFilterModel):
 
         return methods
 
-    def filter(self, query: FindMany[FindType]) -> FindMany[FindType]:
+    async def filter(self, query: FindMany[FindType]) -> FindMany[FindType]:
         plain_filters = self._get_filter_conditions()
         method_filters = self._get_method_filters()
 
@@ -200,6 +200,6 @@ class Filter(BaseFilterModel):
             query = query.find(filter_condition, **filter_kwargs)
 
         for (method, value) in method_filters:
-            query = method(query, value)
+            query = await method(query, value)
 
         return query.find(fetch_links=True)

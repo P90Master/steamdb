@@ -106,8 +106,8 @@ async def list_apps(
     # first caching for 1 and 2 pages, second for 3 and 4 (if needed), third for 5, 6, 7 and 8 pages, etc.
     apps_query = App.find()
 
-    filtered_apps_query = filters.filter(apps_query)
-    sorted_apps_query = filters.sort(filtered_apps_query)
+    filtered_apps_query = await filters.filter(apps_query)
+    sorted_apps_query = await filters.sort(filtered_apps_query)
     apps = await sorted_apps_query.to_list()
 
     offset = (page - 1) * size
