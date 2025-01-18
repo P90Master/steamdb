@@ -105,7 +105,7 @@ class Settings(BaseSettings):
     CELERY_TASK_TIME_LIMIT: int = 1800
     CELERY_SCHEDULE_CLEAN_EXPIRED_TOKENS: str = '0 */2 * * *'
 
-    LOGGER_WRITE_IN_FILE: bool = True
+    LOGGER_WRITE_IN_FILE: bool = False
     LOGGER_LOG_FILES_PATH: str = 'logs'
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:

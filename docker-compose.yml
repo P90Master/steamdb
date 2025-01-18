@@ -11,6 +11,7 @@
 # TODO: commons environment variables (f.e. rabbitmq connection credentials)
 # TODO: docker-compose.dev.yml
 # TODO: solve port conflicts
+# TODO: security issues (root users, xpack.security, etc.)
 
 services:
 
@@ -19,8 +20,11 @@ services:
   auth:
     build:
       context: auth/
+    container_name: auth
     environment:
       DEBUG: ${DEBUG}
+      LOGGER_WRITE_IN_FILE: ${AUTH_LOGGER_WRITE_IN_FILE}
+      LOGGER_LOG_FILES_PATH: ${AUTH_LOGGER_LOG_FILES_PATH}
 
       SUPERUSER_USERNAME: ${AUTH_SUPERUSER_USERNAME}
       SUPERUSER_PASSWORD: ${AUTH_SUPERUSER_PASSWORD}
@@ -133,9 +137,12 @@ services:
       - "${FTSEARCH_ELASTICSEARCH_PORT:-9200}"
       - "9300"
     environment:
+      # TODO: cleaning
+      - cluster.name=ftsearch-index
       - discovery.type=single-node
       - ELASTIC_PASSWORD=$FTSEARCH_ELASTICSEARCH_PASSWORD
-      - xpack.security.enabled=false
+      - xpack.security.enabled=false  # TODO: xpack.security.enabled
+      # TODO: xpack.security.http.ssl.certificate
       - xpack.license.self_generated.type=basic
       - bootstrap.memory_lock=true
       - "ES_JAVA_OPTS=-Xms${FTSEARCH_ELASTICSEARCH_MEMORY:-512m} -Xmx${FTSEARCH_ELASTICSEARCH_MEMORY:-512m}"
@@ -151,7 +158,7 @@ services:
       ELASTICSEARCH_USERNAME: ${FTSEARCH_ELASTICSEARCH_USER}
       ELASTICSEARCH_PASSWORD: ${FTSEARCH_ELASTICSEARCH_PASSWORD}
     ports:
-      - "5601:5601"
+      - "5602:5601"
     depends_on:
       - ftsearch-index
     networks:
@@ -170,6 +177,7 @@ services:
   ftsearch-etl:
     build:
       context: etl/
+    container_name: ftsearch-etl
     environment:
       DEBUG: ${DEBUG}
 
@@ -207,10 +215,13 @@ services:
   backend:
     build:
       context: backend/
+    container_name: backend
     environment:
       DEBUG: ${DEBUG}
       API_VERSION: ${BACKEND_API_VERSION}
       DEFAULT_COUNTRY_CODE: ${DEFAULT_COUNTRY_CODE}
+      LOGGER_WRITE_IN_FILE: ${BACKEND_LOGGER_WRITE_IN_FILE}
+      LOGGER_LOG_FILES_PATH: ${BACKEND_LOGGER_LOG_FILES_PATH}
 
       OAUTH2_SERVER_HOST: ${OAUTH2_SERVER_HOST}
       OAUTH2_SERVER_PORT: ${OAUTH2_SERVER_PORT}
@@ -278,6 +289,7 @@ services:
   orchestrator:
     build:
       context: /orchestrator
+    container_name: orchestrator
     environment:
       DEBUG: ${DEBUG}
       BATCH_SIZE_OF_UPDATING_STEAM_APPS: ${ORCHESTRATOR_BATCH_SIZE_OF_UPDATING_STEAM_APPS}
@@ -362,6 +374,7 @@ services:
   worker:
     build:
       context: /worker
+    container_name: worker
     environment:
       DEBUG: ${DEBUG}
       DEFAULT_COUNTRY_CODE: ${DEFAULT_COUNTRY_CODE}
@@ -398,8 +411,6 @@ services:
       CELERY_BROKER_PROTOCOL: ${WORKER_CELERY_BROKER_PROTOCOL}
       CELERY_TASK_COMMON_RATE_LIMIT: ${WORKER_CELERY_TASK_COMMON_RATE_LIMIT}
       CELERY_TASK_TIME_LIMIT: ${WORKER_CELERY_TASK_TIME_LIMIT}
-    volumes:
-      - worker_logs:/worker/logs
     depends_on:
       - orchestrator-worker-broker
       - worker-celery-broker
@@ -428,6 +439,83 @@ services:
       - common
       - worker
 
+  # logs ###########################################################
+
+  log-shipper:
+    image: docker.elastic.co/beats/filebeat:8.4.3
+    command: filebeat -e --strict.perms=false
+    user: root
+    volumes:
+      - ./logs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro,Z
+      - type: bind
+        source: /var/lib/docker/containers
+        target: /var/lib/docker/containers
+        read_only: true
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+    environment:
+      LOGSTASH_HOST: ${LOGS_LOGSTASH_HOST}
+      LOGSTASH_PORT: ${LOGS_LOGSTASH_PORT}
+    networks:
+      - common
+
+  log-stash:  # literally logstash lol
+    image: logstash:8.4.3
+    volumes:
+      - ./logs/logstash/config.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logs/logstash/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+      - ./logs/logstash/pipelines:/usr/share/logstash/config/pipelines:ro
+    environment:
+      LS_JAVA_OPTS: "-Xms${LOGS_LOGSTASH_MEMORY:-512m} -Xmx${LOGS_LOGSTASH_MEMORY:-512m}"
+      BEATS_PORT: ${LOGS_BEATS_PORT:-5044}
+      ELASTICSEARCH_HOST: ${LOGS_ELASTICSEARCH_HOST}
+      ELASTICSEARCH_PORT: ${LOGS_ELASTICSEARCH_PORT}
+      ELASTICSEARCH_USER: ${LOGS_ELASTICSEARCH_USER}
+      ELASTICSEARCH_PASSWORD: ${LOGS_ELASTICSEARCH_PASSWORD}
+    ports:
+      - "${LOGS_BEATS_PORT:-5044}:5044"
+      - "5000:5000"
+      - "9600:9600"
+    networks:
+      - common
+      - logs
+    depends_on:
+      - log-storage
+
+  log-storage:
+    image: elasticsearch:8.4.3
+    volumes:
+      - log-storage-data:/usr/share/elasticsearch/data
+    environment:
+      ES_JAVA_OPTS: "-Xms${LOGS_ELASTICSEARCH_MEMORY:-512m} -Xmx${LOGS_ELASTICSEARCH_MEMORY:-512m}"
+      ELASTIC_USERNAME: ${LOGS_ELASTICSEARCH_USER}
+      ELASTIC_PASSWORD: ${LOGS_ELASTICSEARCH_PASSWORD}
+      xpack.security.enabled: false  # TODO: xpack.security.enabled
+      # TODO: xpack.security.http.ssl.certificate
+      discovery.type: single-node
+      cluster.name: logs
+    networks:
+      - logs
+    ports:
+      - "${LOGS_ELASTICSEARCH_PORT:-9200}:9200"
+      - "9300:9300"
+
+  log-storage-gui:
+    image: kibana:8.4.3
+    environment:
+      ELASTICSEARCH_HOSTS: "http://${LOGS_ELASTICSEARCH_HOST:-log-storage}:${LOGS_ELASTICSEARCH_PORT:-9200}"
+      ELASTICSEARCH_USERNAME: ${LOGS_ELASTICSEARCH_USER}
+      ELASTICSEARCH_PASSWORD: ${LOGS_ELASTICSEARCH_PASSWORD}
+    depends_on:
+      - log-storage
+    networks:
+      - logs
+    ports:
+      - "5601:5601"
+
+
 volumes:
   # FIXME: "-" instead of "_"
   mongo_data:
@@ -435,9 +523,9 @@ volumes:
   backend-db-data:
   ftsearch-index-data:
   ftsearch-etl-state-storage-data:
-  worker_logs:
   orchestrator-db-data:
   orchestrator-logs:
+  log-storage-data:
 
 networks:
   common:
@@ -449,4 +537,6 @@ networks:
   orchestrator:
     driver: bridge
   backend:
+    driver: bridge
+  logs:
     driver: bridge

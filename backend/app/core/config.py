@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     OAUTH2_SERVER_PORT: int = 8001
     OAUTH2_SERVER_PROTOCOL: str = 'http'
 
-    LOGGER_WRITE_IN_FILE: bool = True
+    LOGGER_WRITE_IN_FILE: bool = False
     LOGGER_LOG_FILES_PATH: str = 'logs'
 
     @computed_field

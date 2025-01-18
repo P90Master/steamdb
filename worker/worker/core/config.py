@@ -70,7 +70,7 @@ class WorkerSettings(BaseSettings):
     STEAM_APP_LIST_URL: str = 'http://api.steampowered.com/ISteamApps/GetAppList/v2'
     STEAM_APP_DETAIL_URL: str = 'http://store.steampowered.com/api/appdetails'
 
-    LOGGER_WRITE_IN_FILE: bool = True
+    LOGGER_WRITE_IN_FILE: bool = False
     LOGGER_LOG_FILES_PATH: str = '../logs'
 
     CELERY_NAME: str = "requests_to_steam"

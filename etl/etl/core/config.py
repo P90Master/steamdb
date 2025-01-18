@@ -14,11 +14,9 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     DEBUG: bool = True
-    TIME_ZONE: str = 'Europe/Moscow'
-    USE_TZ: bool = True
     BATCH_SIZE: int = 100
 
-    LOGGER_WRITE_IN_FILE: bool = True
+    LOGGER_WRITE_IN_FILE: bool = False
     LOGGER_LOG_FILES_PATH: str = 'logs'
 
     MONGO_HOST: str = 'mongodb'

@@ -108,7 +108,7 @@ class OrchestratorSettings(BaseSettings):
             path='api/oauth2/introspect',
         ).unicode_string()
 
-    LOGGER_WRITE_IN_FILE: bool = True
+    LOGGER_WRITE_IN_FILE: bool = False
     LOGGER_LOG_FILES_PATH: str = 'logs'
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:

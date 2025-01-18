@@ -1,0 +1,4 @@
+- pipeline.id: single-host-cluster
+  pipeline.workers: 1
+  pipeline.batch.size: 128
+  path.config: "/usr/share/logstash/config/pipelines/single_host_pipeline.conf"

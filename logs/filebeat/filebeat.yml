@@ -1,0 +1,85 @@
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      templates:
+        - condition:
+            or:
+              - equals:
+                  docker.container.name: "backend"
+              - equals:
+                  docker.container.name: "auth"
+              - equals:
+                  docker.container.name: "worker"
+              - equals:
+                  docker.container.name: "orchestrator"
+              - equals:
+                  docker.container.name: "ftsearch-etl"
+          config:
+            - type: container
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*.log
+              exclude_lines: ["^\\s*[\\-`('.|_]"]  # ignore ascii art lines
+
+processors:
+  - drop_fields:
+      fields: ["agent", "ecs", "log", "input", "docker", "host", "stream"]
+      ignore_missing: true
+
+  - add_tags:
+      when:
+        contains:
+          "container.name": "ftsearch"
+      tags: [ ftsearch ]
+      target: "environment"
+  - add_tags:
+      when:
+        contains:
+          "container.name": "backend"
+      tags: [ backend ]
+      target: "environment"
+  - add_tags:
+      when:
+        contains:
+          "container.name": "auth"
+      tags: [ auth ]
+      target: "environment"
+  - add_tags:
+      when:
+        contains:
+          "container.name": "orchestrator"
+      tags: [ orchestrator ]
+      target: "environment"
+  - add_tags:
+      when:
+        contains:
+          "container.name": "worker"
+      tags: [ worker ]
+      target: "environment"
+  - add_tags:
+      when:
+        contains:
+          "message": "uvicorn"
+      tags: [ uvicorn ]
+      target: "environment"
+
+  - copy_fields:
+      fields:
+        - from: "container.name"
+          to: "service"
+
+  - dissect:
+      tokenizer: '[%{event.component} %{event.date} %{event.time} %{event.level}] %{event.message}'
+      field: "message"
+      target_prefix: ""
+
+  - drop_fields:
+      fields: [ "container", "message" ]
+      ignore_missing: true
+
+output.logstash:
+  hosts: ["${LOGSTASH_HOST}:${LOGSTASH_PORT}"]
+
+# for healthcheck
+http:
+  enabled: true
+  host: 0.0.0.0
