@@ -76,8 +76,11 @@ processors:
       fields: [ "container", "message" ]
       ignore_missing: true
 
-output.logstash:
-  hosts: ["${LOGSTASH_HOST}:${LOGSTASH_PORT}"]
+output.kafka:
+  hosts: ["${KAFKA_HOST}:${KAFKA_PORT}"]
+  topic: "common-logs"
+  codec.json:
+    pretty: false
 
 # for healthcheck
 http:

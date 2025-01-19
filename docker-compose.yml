@@ -444,7 +444,7 @@ services:
   log-shipper:
     image: docker.elastic.co/beats/filebeat:8.4.3
     command: filebeat -e --strict.perms=false
-    user: root
+    user: root  # FIXME: insecure
     volumes:
       - ./logs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro,Z
       - type: bind
@@ -452,12 +452,61 @@ services:
         target: /var/lib/docker/containers
         read_only: true
       - type: bind
-        source: /var/run/docker.sock
+        source: /var/run/docker.sock  # FIXME: insecure
         target: /var/run/docker.sock
         read_only: true
     environment:
-      LOGSTASH_HOST: ${LOGS_LOGSTASH_HOST}
-      LOGSTASH_PORT: ${LOGS_LOGSTASH_PORT}
+      KAFKA_HOST: ${LOGS_KAFKA_HOST}
+      KAFKA_PORT: ${LOGS_KAFKA_PORT}
+    networks:
+      - common
+
+  log-queue:
+    image: wurstmeister/kafka:latest
+    volumes:
+      - log-queue-data:/kafka
+    environment:
+      # for host connection as well
+      # KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:9092,OUTSIDE://localhost:9094
+      # KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      # KAFKA_LISTENERS: INSIDE://0.0.0.0:9092,OUTSIDE://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${LOGS_KAFKA_HOST}:${LOGS_KAFKA_PORT:-9092}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT  # FIXME: insecure
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:${LOGS_KAFKA_PORT:-9092}
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_BROKER_ID: 1
+
+      KAFKA_ZOOKEEPER_CONNECT: ${LOGS_ZOOKEEPER_HOST}:${LOGS_ZOOKEEPER_PORT:-2181}
+      ZOOKEEPER_CONNECTION_TIMEOUT_MS: 18000
+
+      NUM_PARTITIONS: 1
+      DEFAULT_REPLICATION_FACTOR: 1
+      LOG_RETENTION_HOURS: 168
+      LOG_SEGMENT_BYTES: 536870912  # 512 MB
+      LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+
+      NUM_NETWORK_THREADS: 3
+      NUM_IO_THREADS: 8
+      SOCKET_SEND_BUFFER_BYTES: 102400
+      SOCKET_RECEIVE_BUFFER_BYTES: 102400
+      SOCKET_REQUEST_MAX_BYTES: 104857600
+      REQUEST_TIMEOUT_MS: 60000
+      SESSION_TIMEOUT_MS: 60000
+
+      DELETE_TOPIC_ENABLE: true
+      AUTO_CREATE_TOPICS_ENABLE: true
+    expose:
+      - "${LOGS_KAFKA_PORT:-9092}"
+      - "9094"
+    networks:
+      - common
+    depends_on:
+      - log-queue-coordinator
+
+  log-queue-coordinator:
+    image: wurstmeister/zookeeper:latest
+    expose:
+      - "${LOGS_ZOOKEEPER_PORT:-2181}"
     networks:
       - common
 
@@ -469,15 +518,15 @@ services:
       - ./logs/logstash/pipelines:/usr/share/logstash/config/pipelines:ro
     environment:
       LS_JAVA_OPTS: "-Xms${LOGS_LOGSTASH_MEMORY:-512m} -Xmx${LOGS_LOGSTASH_MEMORY:-512m}"
-      BEATS_PORT: ${LOGS_BEATS_PORT:-5044}
+      KAFKA_HOST: ${LOGS_KAFKA_HOST}
+      KAFKA_PORT: ${LOGS_KAFKA_PORT}
       ELASTICSEARCH_HOST: ${LOGS_ELASTICSEARCH_HOST}
       ELASTICSEARCH_PORT: ${LOGS_ELASTICSEARCH_PORT}
       ELASTICSEARCH_USER: ${LOGS_ELASTICSEARCH_USER}
       ELASTICSEARCH_PASSWORD: ${LOGS_ELASTICSEARCH_PASSWORD}
-    ports:
-      - "${LOGS_BEATS_PORT:-5044}:5044"
-      - "5000:5000"
-      - "9600:9600"
+    expose:
+      - "5000"
+      - "9600"
     networks:
       - common
       - logs
@@ -492,15 +541,15 @@ services:
       ES_JAVA_OPTS: "-Xms${LOGS_ELASTICSEARCH_MEMORY:-512m} -Xmx${LOGS_ELASTICSEARCH_MEMORY:-512m}"
       ELASTIC_USERNAME: ${LOGS_ELASTICSEARCH_USER}
       ELASTIC_PASSWORD: ${LOGS_ELASTICSEARCH_PASSWORD}
-      xpack.security.enabled: false  # TODO: xpack.security.enabled
+      xpack.security.enabled: false  # FIXME: insecure
       # TODO: xpack.security.http.ssl.certificate
       discovery.type: single-node
       cluster.name: logs
     networks:
       - logs
-    ports:
-      - "${LOGS_ELASTICSEARCH_PORT:-9200}:9200"
-      - "9300:9300"
+    expose:
+      - "${LOGS_ELASTICSEARCH_PORT:-9200}"
+      - "9300"
 
   log-storage-gui:
     image: kibana:8.4.3
@@ -526,6 +575,7 @@ volumes:
   orchestrator-db-data:
   orchestrator-logs:
   log-storage-data:
+  log-queue-data:
 
 networks:
   common:
