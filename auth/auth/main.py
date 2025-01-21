@@ -56,19 +56,10 @@ app: FastAPI = FastAPI(
     lifespan=lifespan,
 )
 
-# without nginx redirection
-# @app.middleware("http")
-# async def redirect_http(request: Request):
-#     if request.url.scheme != "https":
-#         url = request.url._replace(scheme="https")
-#         return RedirectResponse(url=url)
-
-# from routes import ...
-# app.include_router(...)
-
 admin = Admin(
     engine=engine,
-    auth_provider=AdminProvider()
+    auth_provider=AdminProvider(),
+    statics_dir="/auth/static",
 )
 admin.add_view(UserView(User))
 admin.add_view(ClientView(Client))

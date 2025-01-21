@@ -21,6 +21,8 @@ services:
     build:
       context: auth/
     container_name: auth
+    volumes:
+      - auth-static:/auth/static/admin
     environment:
       DEBUG: ${DEBUG}
       LOGGER_WRITE_IN_FILE: ${AUTH_LOGGER_WRITE_IN_FILE}
@@ -564,11 +566,35 @@ services:
     ports:
       - "5601:5601"
 
+  # web-servers #######################################################################
+
+  web:
+    image: nginx:latest
+    user: nginx
+    ports:
+      - "80:80"
+    environment:
+      AUTH_HOST: ${AUTH_HOST}
+      AUTH_PORT: ${AUTH_PORT}
+      BACKEND_HOST: ${BACKEND_HOST}
+      BACKEND_PORT: ${BACKEND_PORT}
+    volumes:
+      - ./web/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./web/nginx/auth/auth.conf:/etc/nginx/conf.d/auth.conf
+      - ./web/nginx/backend/backend.conf:/etc/nginx/conf.d/backend.conf
+      - auth-static:/usr/share/nginx/html/static/auth/admin
+    networks:
+      - common
+    depends_on:
+      - backend
+      - auth
+
 
 volumes:
   # FIXME: "-" instead of "_"
   mongo_data:
   auth-db-data:
+  auth-static:
   backend-db-data:
   ftsearch-index-data:
   ftsearch-etl-state-storage-data:
