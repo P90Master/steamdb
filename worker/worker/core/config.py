@@ -116,6 +116,7 @@ class WorkerSettings(BaseSettings):
     RABBITMQ_CONNECTION_RETRY_DELAY: int = 3
     RABBITMQ_HEARTBEATS_TIMEOUT: int = 30
     RABBITMQ_HEARTBEATS_MAX_DELAY: int = 120
+    RABBITMQ_QUEUE_MESSAGE_TTL: int = 1000 * 60 * 60 * 24 * 7  # 7 days
 
     @field_validator("CELERY_TASK_COMMON_RATE_LIMIT")
     @classmethod

@@ -70,7 +70,7 @@ class TaskManager(metaclass=TaskManagerMeta):
             routing_key=settings.RABBITMQ_OUTCOME_QUERY,
             body=context_json_payload,
             properties=pika.BasicProperties(
-                delivery_mode=2,
+                delivery_mode=pika.DeliveryMode.Persistent,
                 priority=message_priority
             )
         )
@@ -236,6 +236,12 @@ class TaskManager(metaclass=TaskManagerMeta):
                     return
 
                 updated_app_id = task_result.get('data', {}).get('id')
+                # FIXME: The same id is hit multiple times (since one app is requested in multiple countries).
+                #        The DB orchestrator does not store a record of the update time of the id and country pair,
+                #        but only about the app. That is, if out of 7 requested countries, 6 are received successfully,
+                #        and one failed, then the app should not be considered successfully updated.
+                #        In the current implementation, if at least one country of app was successfully updated,
+                #        then the app_id will be in the set => it will be written in db as successfully updated.
                 if updated_app_id:
                     successfully_updated_app_ids.add(updated_app_id)
 

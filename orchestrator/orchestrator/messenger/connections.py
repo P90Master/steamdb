@@ -31,7 +31,10 @@ def create_channel() -> tuple[pika.adapters.blocking_connection.BlockingChannel,
 
     new_connection = connect()
     new_channel = new_connection.channel()
-    channel_args = {'x-max-priority': 5}
+    channel_args = {
+        'x-max-priority': 5,
+        'x-message-ttl': settings.RABBITMQ_QUEUE_MESSAGE_TTL,
+    }
     new_channel.queue_declare(queue=settings.RABBITMQ_INCOME_QUERY, durable=True, arguments=channel_args)
     new_channel.queue_declare(queue=settings.RABBITMQ_OUTCOME_QUERY, durable=True, arguments=channel_args)
     new_channel.basic_qos(prefetch_count=1)

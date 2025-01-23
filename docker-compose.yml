@@ -1,6 +1,8 @@
 # TODO: cluster name
 # TODO: profiles
 # TODO: healthcheck
+# TODO: deploy
+# TODO: volumes conf
 # TODO: container names?
 # TODO: depends conditions
 # TODO: hostnames
@@ -11,6 +13,7 @@
 # TODO: commons environment variables (f.e. rabbitmq connection credentials)
 # TODO: docker-compose.dev.yml
 # TODO: solve port conflicts
+# TODO: stages in Dockerfile
 # TODO: security issues (root users, xpack.security, etc.)
 
 services:
@@ -279,9 +282,10 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     volumes:
       - ./orchestrator-worker-broker.conf:/etc/rabbitmq/rabbitmq.conf
+      - orchestrator-worker-broker-data:/var/lib/rabbitmq
     expose:
       - "5672"
-      - "15672"
+      - "15672"  # with expose lose management UI port
     networks:
       - orchestrator
       - worker
@@ -337,8 +341,6 @@ services:
       DB_NAME: ${ORCHESTRATOR_DB_NAME}
       DB_DRIVER: ${ORCHESTRATOR_DB_DRIVER}
       DB_TYPE: ${ORCHESTRATOR_DB_TYPE}
-    volumes:
-      - orchestrator-logs:/orchestrator/logs
     depends_on:
       - orchestrator-worker-broker
       - orchestrator-db
@@ -607,7 +609,7 @@ volumes:
   ftsearch-index-data:
   ftsearch-etl-state-storage-data:
   orchestrator-db-data:
-  orchestrator-logs:
+  orchestrator-worker-broker-data:
   log-storage-data:
   log-queue-data:
 

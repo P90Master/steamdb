@@ -67,7 +67,7 @@ class TaskManager(metaclass=TaskManagerMeta):
             routing_key=settings.RABBITMQ_OUTCOME_QUERY,
             body=context_json_payload,
             properties=pika.BasicProperties(
-                delivery_mode=2,
+                delivery_mode=pika.DeliveryMode.Persistent,
                 priority=self.send_msg_with_priority
             )
         )
