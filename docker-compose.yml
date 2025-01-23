@@ -58,6 +58,7 @@ services:
       - auth-db
       - auth-cache
       - auth-task-broker
+    # TODO: expose. Now for debug. From host only admin panel (http(s)://0.0.0.0:5000/admin) is accessible (through nginx proxy)
     ports:
       - "${AUTH_PORT:-8001}:8001"
     networks:
@@ -72,8 +73,6 @@ services:
       POSTGRES_USER: ${AUTH_DB_USER}
       POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
       POSTGRES_DB: ${AUTH_DB_NAME}
-    # ports:
-    #   - "${AUTH_DB_PORT:-5432}:5432"
     expose:
       - "${AUTH_DB_PORT:-5432}"
     volumes:
@@ -256,6 +255,7 @@ services:
     depends_on:
       - db
       - backend-cache
+    # TODO: expose. Now for debug. From host accessible at http(s)://0.0.0.0:80 (through nginx proxy)
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:
@@ -346,6 +346,7 @@ services:
     networks:
       - common
       - orchestrator
+    # TODO: expose. Now for debug
     ports:
       - "${ORCHESTRATOR_PORT:-8888}:8888"
 
@@ -357,8 +358,8 @@ services:
       POSTGRES_USER: ${ORCHESTRATOR_DB_USER}
       POSTGRES_PASSWORD: ${ORCHESTRATOR_DB_PASSWORD}
       POSTGRES_DB: ${ORCHESTRATOR_DB_NAME}
-    ports:
-      - "${ORCHESTRATOR_DB_PORT:-5432}:5432"
+    expose:
+      - "${ORCHESTRATOR_DB_PORT:-5432}"
     volumes:
       - orchestrator-db-data:/var/lib/postgresql/data
     networks:
@@ -570,18 +571,25 @@ services:
 
   web:
     image: nginx:latest
-    user: nginx
     ports:
       - "80:80"
+      - "5000:5000"
     environment:
-      AUTH_HOST: ${AUTH_HOST}
-      AUTH_PORT: ${AUTH_PORT}
+      AUTH_HOST: ${OAUTH2_SERVER_HOST}
+      AUTH_PORT: ${OAUTH2_SERVER_PORT}
       BACKEND_HOST: ${BACKEND_HOST}
       BACKEND_PORT: ${BACKEND_PORT}
+    command:
+      - /bin/bash
+      - -c
+      - |
+        envsubst '$$AUTH_HOST $$AUTH_PORT'< /etc/nginx/conf.d/auth.conf.template > /etc/nginx/conf.d/auth.conf
+        envsubst '$$BACKEND_HOST $$BACKEND_PORT' < /etc/nginx/conf.d/backend.conf.template > /etc/nginx/conf.d/backend.conf
+        nginx -g 'daemon off;'
     volumes:
       - ./web/nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./web/nginx/auth/auth.conf:/etc/nginx/conf.d/auth.conf
-      - ./web/nginx/backend/backend.conf:/etc/nginx/conf.d/backend.conf
+      - ./web/nginx/auth/auth.conf.template:/etc/nginx/conf.d/auth.conf.template
+      - ./web/nginx/backend/backend.conf.template:/etc/nginx/conf.d/backend.conf.template
       - auth-static:/usr/share/nginx/html/static/auth/admin
     networks:
       - common

@@ -1,7 +1,7 @@
 server {
-    server_name _;
-    listen 80 default_server;
-    listen [::]:80 default_server;
+    server_name backend;
+    listen 80;
+    listen [::]:80;
 
     location / {
         proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT};

@@ -1,0 +1,34 @@
+server {
+    server_name auth;
+    listen 5000;
+    listen [::]:5000;
+    server_name_in_redirect off;
+
+    location /admin {
+        proxy_pass http://${AUTH_HOST}:${AUTH_PORT}/admin;
+        proxy_set_header Host $host:$server_port;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_redirect http://$host:80/ http://$host:5000/;
+        proxy_redirect http://$host/ http://$host:5000/;
+    }
+
+    location /admin/statics/ {
+        alias /usr/share/nginx/html/static/auth/admin/;
+        types {
+            text/css css;
+            application/javascript js;
+        }
+        try_files $uri $uri/ =404;
+
+        expires 30d;
+        add_header Cache-Control "public";
+        add_header Content-Type "text/css; charset=utf-8";
+    }
+
+    location / {
+        return 404;
+    }
+}
