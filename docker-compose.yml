@@ -133,7 +133,7 @@ services:
       ME_CONFIG_MONGODB_URL: 'mongodb://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/'
       ME_CONFIG_BASICAUTH: false
     ports:
-      - "{MONGO_GUI_PORT:-8081}:8081"
+      - "${MONGO_GUI_PORT:-8081}:8081"
     networks:
       - common
       - backend
