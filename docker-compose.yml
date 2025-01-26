@@ -3,8 +3,8 @@
 name: steamdb
 
 x-oath2-integration-variables: &oath2-integration-variables
-  OAUTH2_SERVER_HOST: ${OAUTH2_SERVER_HOST:-OAUTH2_SERVER_HOST}
-  OAUTH2_SERVER_PORT: ${OAUTH2_SERVER_PORT:-OAUTH2_SERVER_PORT}
+  OAUTH2_SERVER_HOST: ${OAUTH2_SERVER_HOST:-auth}
+  OAUTH2_SERVER_PORT: ${OAUTH2_SERVER_PORT:-8001}
   OAUTH2_SERVER_PROTOCOL: ${OAUTH2_SERVER_PROTOCOL:-http}
 
 x-common-restart-policy: &common-restart-policy
