@@ -5,8 +5,8 @@ COPY . .
 
 COPY requirements.txt .
 
-# TODO: apt update
-RUN pip install --upgrade pip && \
+RUN apt-get update && \
+    pip install --upgrade pip && \
     pip install -r requirements.txt && \
     rm requirements.txt
 

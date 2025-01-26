@@ -1,20 +1,17 @@
-# TODO: cluster name
-# TODO: profiles
-# TODO: healthcheck
-# TODO: deploy
-# TODO: volumes conf
-# TODO: container names?
-# TODO: depends conditions
-# TODO: hostnames
-# TODO: build
-# TODO: restart
-# TODO: worker deploy replicas
-# TODO: defaults in environment
-# TODO: commons environment variables (f.e. rabbitmq connection credentials)
-# TODO: docker-compose.dev.yml
-# TODO: solve port conflicts
-# TODO: stages in Dockerfile
+# TODO: worker & backend deploy replicas
 # TODO: security issues (root users, xpack.security, etc.)
+name: steamdb
+
+x-oath2-integration-variables: &oath2-integration-variables
+  OAUTH2_SERVER_HOST: ${OAUTH2_SERVER_HOST:-OAUTH2_SERVER_HOST}
+  OAUTH2_SERVER_PORT: ${OAUTH2_SERVER_PORT:-OAUTH2_SERVER_PORT}
+  OAUTH2_SERVER_PROTOCOL: ${OAUTH2_SERVER_PROTOCOL:-http}
+
+x-common-restart-policy: &common-restart-policy
+  restart_policy:
+    condition: always
+    delay: 5s
+    window: 120s
 
 services:
 
@@ -24,6 +21,7 @@ services:
     build:
       context: auth/
     container_name: auth
+    profiles: ["", "auth"]
     volumes:
       - auth-static:/auth/static/admin
     environment:
@@ -62,22 +60,28 @@ services:
       CACHE_PORT: ${AUTH_CACHE_PORT:-6379}
       CACHE_PASSWORD: ${AUTH_CACHE_PASSWORD}
       CACHE_TIMEOUT: ${AUTH_CACHE_TIMEOUT}
-    restart: always
+    deploy:
+      <<: *common-restart-policy
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
     depends_on:
-      - auth-db
-      - auth-cache
-      - auth-task-broker
-    # TODO: expose. Now for debug. From host only admin panel (http(s)://0.0.0.0:5000/admin) is accessible (through nginx proxy)
-    ports:
-      - "${AUTH_PORT:-8001}:8001"
+      auth-db:
+        condition: service_healthy
+      auth-cache:
+        condition: service_healthy
+      auth-task-broker:
+        condition: service_healthy
+    expose:
+      - "${AUTH_PORT:-8001}"
     networks:
       - common
       - auth
 
   auth-db:
-    # TODO: configure resources consumption
     image: postgres:16
-    restart: always
+    profiles: ["", "auth"]
     environment:
       POSTGRES_USER: ${AUTH_DB_USER}
       POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
@@ -86,105 +90,139 @@ services:
       - "${AUTH_DB_PORT:-5432}"
     volumes:
       - auth-db-data:/var/lib/postgresql/data
+    deploy:
+      <<: *common-restart-policy
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${AUTH_DB_USER}" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - auth
 
   auth-cache:
     image: "redis:alpine"
-    restart: always
+    profiles: ["", "auth"]
     command: redis-server --requirepass ${AUTH_CACHE_PASSWORD}
     expose:
       - "${AUTH_CACHE_PORT:-6379}"
+    deploy:
+      <<: *common-restart-policy
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -h 127.0.0.1 ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - auth
 
   auth-task-broker:
     image: redis:latest
+    profiles: ["", "auth"]
     expose:
       - "{AUTH_CELERY_BROKER_PORT:-6379}"
+    deploy:
+      <<: *common-restart-policy
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -h 127.0.0.1 ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - auth
 
   # main db ##############################################################
 
   db:
-    # TODO: configure resources consumption
     image: mongo
-    restart: always
+    profiles: ["", "backend"]
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
     volumes:
-      - mongo_data:/data/db
+      - mongo-data:/data/db
     expose:
       - "{MONGO_PORT:-27017}"
+    deploy:
+      <<: *common-restart-policy
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    healthcheck:
+      test: [ "CMD", "mongosh", "--quiet", "127.0.0.1/test", "--eval", "'db.runCommand({ ping: 1 }).ok ? 0 : 2'" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     networks:
-      - backend
-
-  db-gui:
-    # TODO: docker-compose.dev.yml
-    image: mongo-express
-    restart: always
-    depends_on:
-      - db
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USER}
-      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD}
-      ME_CONFIG_MONGODB_URL: 'mongodb://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/'
-      ME_CONFIG_BASICAUTH: false
-    ports:
-      - "${MONGO_GUI_PORT:-8081}:8081"
-    networks:
-      - common
       - backend
 
   # fulltext search ##############################################################
 
   ftsearch-index:
     image: elasticsearch:8.4.3
-    restart: always
+    profiles: ["", "ftsearch"]
     expose:
       - "${FTSEARCH_ELASTICSEARCH_PORT:-9200}"
       - "9300"
     environment:
-      CLUSTER_NAME: ftsearch-index
-      DISCOVERY_TYPE: single-node
+      cluster.name: ftsearch-index
+      discovery.type: single-node
       ELASTIC_PASSWORD: $FTSEARCH_ELASTICSEARCH_PASSWORD
-      XPACK_SECURITY_ENABLED: false  # TODO: xpack.security.enabled
-      XPACK_LICENSE_SELF_GENERATED_TYPE: basic
-      BOOTSTRAP_MEMORY_LOCK: true
+      xpack.security.enabled: false  # TODO: xpack.security.enabled
+      bootstrap.memory_lock: true
       ES_JAVA_OPTS: "-Xms${FTSEARCH_ELASTICSEARCH_MEMORY:-512m} -Xmx${FTSEARCH_ELASTICSEARCH_MEMORY:-512m}"
     volumes:
       - ftsearch-index-data:/usr/share/elasticsearch/data
-    networks:
-      - backend
-
-  ftsearch-index-gui:
-    image: docker.elastic.co/kibana/kibana:8.4.3
-    environment:
-      ELASTICSEARCH_HOSTS: "http://${FTSEARCH_ELASTICSEARCH_HOST:-ftsearch-index}:${FTSEARCH_ELASTICSEARCH_PORT:-9200}"
-      ELASTICSEARCH_USERNAME: ${FTSEARCH_ELASTICSEARCH_USER}
-      ELASTICSEARCH_PASSWORD: ${FTSEARCH_ELASTICSEARCH_PASSWORD}
-    ports:
-      - "5602:5601"
-    depends_on:
-      - ftsearch-index
+    deploy:
+      <<: *common-restart-policy
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          memory: 1G
+    healthcheck:
+      # For xpack.security.enabled
+      # test: ["CMD-SHELL", "curl -s --cacert /path/to/ca.crt https://localhost:${FTSEARCH_ELASTICSEARCH_PORT:-9200}/_cluster/health | grep -q 'status.:.green'"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:${FTSEARCH_ELASTICSEARCH_PORT:-9200}/_cluster/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - backend
 
   ftsearch-etl-state-storage:
     image: redis:latest
+    profiles: ["", "ftsearch"]
     command: redis-server --requirepass ${FTSEARCH_STATE_STORAGE_PASSWORD}
     expose:
       - "${FTSEARCH_STATE_STORAGE_PORT:-6379}"
     volumes:
       - ftsearch-etl-state-storage-data:/data
+    deploy:
+      <<: *common-restart-policy
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -h 127.0.0.1 ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - backend
 
   ftsearch-etl:
     build:
       context: etl/
+    profiles: ["", "ftsearch"]
     container_name: ftsearch-etl
     environment:
       DEBUG: ${DEBUG:-false}
@@ -207,14 +245,14 @@ services:
       ELASTICSEARCH_INDEX: ${FTSEARCH_ELASTICSEARCH_INDEX:-steam-apps}
       BATCH_SIZE: ${FTSEARCH_ETL_BATCH_SIZE:-100}
     deploy:
-      restart_policy:
-        condition: always
-        delay: 5s
-        window: 120s
+      <<: *common-restart-policy
     depends_on:
-      - ftsearch-index
-      - ftsearch-etl-state-storage
-      - db
+      ftsearch-index:
+        condition: service_healthy
+      ftsearch-etl-state-storage:
+        condition: service_healthy
+      db:
+        condition: service_healthy
     networks:
       - backend
 
@@ -224,7 +262,10 @@ services:
     build:
       context: backend/
     container_name: backend
+    profiles: ["", "backend"]
     environment:
+      <<: *oath2-integration-variables
+
       DEBUG: ${DEBUG:-false}
       API_VERSION: ${BACKEND_API_VERSION:-v1}
       DEFAULT_COUNTRY_CODE: ${DEFAULT_COUNTRY_CODE:-US}
@@ -237,9 +278,6 @@ services:
       LIMIT_CONCURRENCY: ${BACKEND_LIMIT_CONCURRENCY:-100}
       BACKLOG_SIZE: ${BACKEND_BACKLOG_SIZE:-2048}
 
-      OAUTH2_SERVER_HOST: ${OAUTH2_SERVER_HOST:-OAUTH2_SERVER_HOST}
-      OAUTH2_SERVER_PORT: ${OAUTH2_SERVER_PORT:-OAUTH2_SERVER_PORT}
-      OAUTH2_SERVER_PROTOCOL: ${OAUTH2_SERVER_PROTOCOL:-http}
       ESSENTIAL_BACKEND_CLIENT_ID: ${ESSENTIAL_BACKEND_CLIENT_ID}
       ESSENTIAL_BACKEND_CLIENT_SECRET: ${ESSENTIAL_BACKEND_CLIENT_SECRET}
 
@@ -264,20 +302,33 @@ services:
       ORCHESTRATOR_HOST: ${ORCHESTRATOR_HOST:-orchestrator}
       ORCHESTRATOR_PORT: ${ORCHESTRATOR_PORT:-8888}
       ORCHESTRATOR_API_VERSION: ${ORCHESTRATOR_API_VERSION:-v1}
-    restart: always
+    deploy:
+      <<: *common-restart-policy
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
     depends_on:
-      - db
-      - backend-cache
-    # TODO: expose. Now for debug. From host accessible at http(s)://0.0.0.0:80 (through nginx proxy)
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      db:
+        condition: service_healthy
+      backend-cache:
+        condition: service_healthy
+    expose:
+      - "${BACKEND_PORT:-8000}"
     networks:
       - backend
       - common
 
   backend-cache:
-    image: "redis:alpine"
-    restart: always
+    image: redis:latest
+    profiles: ["", "backend"]
+    deploy:
+      <<: *common-restart-policy
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -h 127.0.0.1 ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     expose:
       - "${BACKEND_CACHE_PORT:-6379}"
     networks:
@@ -287,6 +338,7 @@ services:
 
   orchestrator-worker-broker:
     image: rabbitmq:3-management
+    profiles: ["", "provider-cluster", "orchestrator", "worker"]
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
@@ -295,7 +347,13 @@ services:
       - orchestrator-worker-broker-data:/var/lib/rabbitmq
     expose:
       - "{RABBITMQ_PORT:-5672}"
-      - "15672"  # with expose lose management UI port
+    deploy:
+      <<: *common-restart-policy
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - orchestrator
       - worker
@@ -305,15 +363,15 @@ services:
   orchestrator:
     build:
       context: /orchestrator
+    profiles: ["", "provider-cluster", "orchestrator"]
     container_name: orchestrator
     environment:
+      <<: *oath2-integration-variables
+
       DEBUG: ${DEBUG:-false}
       BATCH_SIZE_OF_UPDATING_STEAM_APPS: ${ORCHESTRATOR_BATCH_SIZE_OF_UPDATING_STEAM_APPS:-20}
       DEFAULT_COUNTRY_CODE: ${DEFAULT_COUNTRY_CODE:-US}
       API_VERSION: ${ORCHESTRATOR_API_VERSION:-v1}
-      OAUTH2_SERVER_HOST: ${OAUTH2_SERVER_HOST:-OAUTH2_SERVER_HOST}
-      OAUTH2_SERVER_PORT: ${OAUTH2_SERVER_PORT:-OAUTH2_SERVER_PORT}
-      OAUTH2_SERVER_PROTOCOL: ${OAUTH2_SERVER_PROTOCOL:-http}
 
       LOGGER_WRITE_IN_FILE: ${ORCHESTRATOR_LOGGER_WRITE_IN_FILE:-false}
       LOGGER_LOG_FILES_PATH: ${ORCHESTRATOR_LOGGER_LOG_FILES_PATH:-logs}
@@ -344,26 +402,47 @@ services:
       DB_DRIVER: ${ORCHESTRATOR_DB_DRIVER:-psycopg}
       DB_TYPE: ${ORCHESTRATOR_DB_TYPE:-postgresql}
     depends_on:
-      - orchestrator-worker-broker
-      - orchestrator-db
-      - orchestrator-task-broker
+      orchestrator-worker-broker:
+        condition: service_healthy
+      orchestrator-db:
+        condition: service_healthy
+      orchestrator-task-broker:
+        condition: service_healthy
+    deploy:
+      <<: *common-restart-policy
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
     networks:
       - common
       - orchestrator
-    # TODO: expose. Now for debug
-    ports:
-      - "${ORCHESTRATOR_PORT:-8888}:8888"
+    expose:
+      - "${ORCHESTRATOR_PORT:-8888}"
 
   orchestrator-db:
-    # TODO: configure resources consumption
     image: postgres:16
-    restart: always
+    profiles: ["", "provider-cluster", "orchestrator"]
     environment:
       POSTGRES_USER: ${ORCHESTRATOR_DB_USER}
       POSTGRES_PASSWORD: ${ORCHESTRATOR_DB_PASSWORD}
       POSTGRES_DB: ${ORCHESTRATOR_DB_NAME:-steam_apps}
     expose:
       - "${ORCHESTRATOR_DB_PORT:-5432}"
+    deploy:
+      <<: *common-restart-policy
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${ORCHESTRATOR_DB_USER}" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     volumes:
       - orchestrator-db-data:/var/lib/postgresql/data
     networks:
@@ -371,6 +450,11 @@ services:
 
   orchestrator-task-broker:
     image: redis:latest
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -h 127.0.0.1 ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     expose:
       - "6379"
     networks:
@@ -381,13 +465,13 @@ services:
   worker:
     build:
       context: /worker
+    profiles: ["", "provider-cluster", "worker"]
     container_name: worker
     environment:
+      <<: *oath2-integration-variables
+
       DEBUG: ${DEBUG:-false}
       DEFAULT_COUNTRY_CODE: ${DEFAULT_COUNTRY_CODE:-US}
-      OAUTH2_SERVER_HOST: ${OAUTH2_SERVER_HOST:-auth}
-      OAUTH2_SERVER_PORT: ${OAUTH2_SERVER_PORT:-8001}
-      OAUTH2_SERVER_PROTOCOL: ${OAUTH2_SERVER_PROTOCOL:-http}
       ESSENTIAL_WORKER_CLIENT_ID: ${ESSENTIAL_WORKER_CLIENT_ID}
       ESSENTIAL_WORKER_CLIENT_SECRET: ${ESSENTIAL_WORKER_CLIENT_SECRET}
 
@@ -406,8 +490,8 @@ services:
       RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
       RABBITMQ_USER: ${RABBITMQ_USER}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
-      RABBITMQ_INCOME_QUERY: ${WORKER_RABBITMQ_INCOME_QUERY:-tasks_for_workers}  # TODO: rename tasks.workers
-      RABBITMQ_OUTCOME_QUERY: ${WORKER_RABBITMQ_OUTCOME_QUERY:-tasks_for_orchestrator}  # TODO: rename tasks.orchestrator
+      RABBITMQ_INCOME_QUERY: ${WORKER_RABBITMQ_INCOME_QUERY:-tasks.workers}
+      RABBITMQ_OUTCOME_QUERY: ${WORKER_RABBITMQ_OUTCOME_QUERY:-tasks.orchestrator}
       RABBITMQ_CONNECTION_ATTEMPTS: ${RABBITMQ_CONNECTION_ATTEMPTS:-3}
       RABBITMQ_CONNECTION_RETRY_DELAY: ${RABBITMQ_CONNECTION_RETRY_DELAY:-3}
       RABBITMQ_HEARTBEATS_MAX_DELAY: ${RABBITMQ_HEARTBEATS_MAX_DELAY:-120}
@@ -419,37 +503,36 @@ services:
       CELERY_TASK_COMMON_RATE_LIMIT: ${WORKER_CELERY_TASK_COMMON_RATE_LIMIT:-39/m}
       CELERY_TASK_TIME_LIMIT: ${WORKER_CELERY_TASK_TIME_LIMIT:-40}
     depends_on:
-      - orchestrator-worker-broker
-      - worker-celery-broker
+      orchestrator-worker-broker:
+        condition: service_healthy
+      worker-celery-broker:
+        condition: service_healthy
+    deploy:
+      <<: *common-restart-policy
     networks:
       - common
       - worker
 
   worker-celery-broker:
     image: redis:alpine
+    profiles: ["", "provider-cluster", "worker"]
     expose:
-      - "6379"
+      - "${WORKER_CELERY_BROKER_PORT:-6379}"
+    deploy:
+      <<: *common-restart-policy
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -h 127.0.0.1 ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
-      - worker
-
-  worker-celery-flower:
-    # TODO: docker-compose.dev.yml
-    image: mher/flower
-    # TODO: build broker url
-    command: celery --broker=redis://${WORKER_CELERY_BROKER_HOST:-worker-celery-broker}:6379/0 flower
-    ports:
-      - "${WORKER_CELERY_FLOWER_PORT:-5555}:5555"
-    depends_on:
-      - worker-celery-broker
-      - worker
-    networks:
-      - common
       - worker
 
   # logs ###########################################################
 
   log-shipper:
     image: docker.elastic.co/beats/filebeat:8.4.3
+    profiles: ["", "logs"]
     command: filebeat -e --strict.perms=false
     user: root  # FIXME: insecure
     volumes:
@@ -465,11 +548,14 @@ services:
     environment:
       KAFKA_HOST: ${LOGS_KAFKA_HOST:-log-queue}
       KAFKA_PORT: ${LOGS_KAFKA_PORT:-9092}
+    deploy:
+      <<: *common-restart-policy
     networks:
       - common
 
   log-queue:
     image: wurstmeister/kafka:latest
+    profiles: ["", "logs"]
     volumes:
       - log-queue-data:/kafka
     environment:
@@ -508,10 +594,22 @@ services:
     networks:
       - common
     depends_on:
-      - log-queue-coordinator
+      log-queue-coordinator:
+        condition: service_healthy
+    deploy:
+      <<: *common-restart-policy
 
   log-queue-coordinator:
     image: wurstmeister/zookeeper:latest
+    profiles: ["", "logs"]
+    deploy:
+      <<: *common-restart-policy
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "${LOGS_ZOOKEEPER_PORT:-2181}" ]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     expose:
       - "${LOGS_ZOOKEEPER_PORT:-2181}"
     networks:
@@ -519,6 +617,7 @@ services:
 
   log-stash:  # literally logstash lol
     image: logstash:8.4.3
+    profiles: ["", "logs"]
     volumes:
       - ./logs/logstash/config.yml:/usr/share/logstash/config/logstash.yml:ro
       - ./logs/logstash/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
@@ -534,14 +633,24 @@ services:
     expose:
       - "${LOGS_LOG_STASH_PORT:-5044}"
       - "9600"
+    deploy:
+      <<: *common-restart-policy
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          memory: 1G
     networks:
       - common
       - logs
     depends_on:
-      - log-storage
+      log-storage:
+        condition: service_healthy
 
   log-storage:
     image: elasticsearch:8.4.3
+    profiles: ["", "logs"]
     volumes:
       - log-storage-data:/usr/share/elasticsearch/data
     environment:
@@ -552,6 +661,21 @@ services:
       # TODO: xpack.security.http.ssl.certificate
       discovery.type: single-node
       cluster.name: logs
+    deploy:
+      <<: *common-restart-policy
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          memory: 1G
+    healthcheck:
+      # For xpack.security.enabled
+      # test: ["CMD-SHELL", "curl -s --cacert /path/to/ca.crt https://localhost:${LOGS_ELASTICSEARCH_PORT:-9200}/_cluster/health | grep -q 'status.:.green'"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:${LOGS_ELASTICSEARCH_PORT:-9200}/_cluster/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - logs
     expose:
@@ -560,12 +684,14 @@ services:
 
   log-storage-gui:
     image: kibana:8.4.3
+    profiles: ["", "logs"]
     environment:
       ELASTICSEARCH_HOSTS: "http://${LOGS_ELASTICSEARCH_HOST:-log-storage}:${LOGS_ELASTICSEARCH_PORT:-9200}"
       ELASTICSEARCH_USERNAME: ${LOGS_ELASTICSEARCH_USER}
       ELASTICSEARCH_PASSWORD: ${LOGS_ELASTICSEARCH_PASSWORD}
     depends_on:
-      - log-storage
+      log-storage:
+        condition: service_healthy
     networks:
       - logs
     ports:
@@ -575,6 +701,7 @@ services:
 
   web:
     image: nginx:latest
+    profiles: ["", "web"]
     ports:
       - "80:80"
       - "${OAUTH2_SERVER_OUTSIDE_PORT:-5000}:5000"
@@ -595,16 +722,18 @@ services:
       - ./web/nginx/auth/auth.conf.template:/etc/nginx/conf.d/auth.conf.template
       - ./web/nginx/backend/backend.conf.template:/etc/nginx/conf.d/backend.conf.template
       - auth-static:/usr/share/nginx/html/static/auth/admin
+    deploy:
+      <<: *common-restart-policy
     networks:
       - common
     depends_on:
-      - backend
-      - auth
-
+      backend:
+        condition: service_started
+      auth:
+        condition: service_started
 
 volumes:
-  # FIXME: "-" instead of "_"
-  mongo_data:
+  mongo-data:
   auth-db-data:
   auth-static:
   backend-db-data:

@@ -1,0 +1,77 @@
+x-common-restart-policy: &common-restart-policy
+  restart_policy:
+    condition: always
+    delay: 5s
+    window: 120s
+
+services:
+
+  auth:
+    # From host only admin panel (http(s)://0.0.0.0:5000/admin) is accessible (through nginx proxy)
+    ports:
+      - "${AUTH_PORT:-8001}:8001"
+
+  backend:
+    # From host accessible at http(s)://0.0.0.0:80 (through nginx proxy)
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+
+  orchestrator:
+    ports:
+      - "${ORCHESTRATOR_PORT:-8888}:8888"
+
+  orchestrator-worker-broker:
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "15672:15672"
+
+  worker-celery-flower:
+    image: mher/flower
+    profiles: [ "", "provider-cluster", "worker" ]
+    command: celery --broker=redis://${WORKER_CELERY_BROKER_HOST:-worker-celery-broker}:6379/0 flower
+    ports:
+      - "${WORKER_CELERY_FLOWER_PORT:-5555}:5555"
+    depends_on:
+      worker-celery-broker:
+        condition: service_healthy
+      worker:
+        condition: service_started
+    networks:
+      - common
+      - worker
+
+  ftsearch-index-gui:
+    image: docker.elastic.co/kibana/kibana:8.4.3
+    profiles: [ "", "ftsearch" ]
+    environment:
+      ELASTICSEARCH_HOSTS: "http://${FTSEARCH_ELASTICSEARCH_HOST:-ftsearch-index}:${FTSEARCH_ELASTICSEARCH_PORT:-9200}"
+      ELASTICSEARCH_USERNAME: ${FTSEARCH_ELASTICSEARCH_USER}
+      ELASTICSEARCH_PASSWORD: ${FTSEARCH_ELASTICSEARCH_PASSWORD}
+    ports:
+      - "5602:5601"
+    depends_on:
+      ftsearch-index:
+        condition: service_healthy
+    deploy:
+      <<: *common-restart-policy
+    networks:
+      - backend
+
+  db-gui:
+    image: mongo-express
+    profiles: [ "", "backend" ]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USER}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD}
+      ME_CONFIG_MONGODB_URL: 'mongodb://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/'
+      ME_CONFIG_BASICAUTH: false
+    ports:
+      - "${MONGO_GUI_PORT:-8081}:8081"
+    networks:
+      - common
+      - backend
+
+
