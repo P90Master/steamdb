@@ -4,8 +4,8 @@ filebeat.autodiscover:
       templates:
         - condition:
             or:
-              - equals:
-                  docker.container.name: "backend"
+              - contains:
+                  docker.container.name: "backend-"
               - equals:
                   docker.container.name: "auth"
               - equals:
