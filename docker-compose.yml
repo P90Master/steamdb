@@ -687,6 +687,23 @@ services:
       - "${LOGS_ELASTICSEARCH_PORT:-9200}"
       - "9300"
 
+  log-storage-ilm-setup:
+    image: curlimages/curl:latest
+    profiles: ["", "logs"]
+    depends_on:
+      log-storage:
+        condition: service_healthy
+    # TODO: http to https
+    command: >
+      /bin/sh -c "
+        curl -X PUT 'http://${LOGS_ELASTICSEARCH_HOST:-log-storage}:${LOGS_ELASTICSEARCH_PORT:-9200}/_ilm/policy/ilm-logs-policy' -H 'Content-Type: application/json' -d @/policies/es_logs_ilm.json;
+        curl -X PUT 'http://${LOGS_ELASTICSEARCH_HOST:-log-storage}:${LOGS_ELASTICSEARCH_PORT:-9200}/_template/logs' -H 'Content-Type: application/json' -d @/templates/log_template.json;
+      "
+    volumes:
+      - ./logs/elasticsearch/policies:/policies
+    networks:
+      - logs
+
   log-storage-gui:
     image: kibana:8.4.3
     profiles: ["", "logs"]

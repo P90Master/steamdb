@@ -1,0 +1,7 @@
+{
+  "index_patterns": ["logs-*"],
+  "settings": {
+    "index.lifecycle.name": "ilm-logs-policy",
+    "index.lifecycle.rollover_alias": "logs"
+  }
+}
