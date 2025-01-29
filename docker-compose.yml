@@ -636,7 +636,7 @@ services:
       ELASTICSEARCH_USER: ${LOGS_ELASTICSEARCH_USER}
       ELASTICSEARCH_PASSWORD: ${LOGS_ELASTICSEARCH_PASSWORD}
     expose:
-      - "${LOGS_LOG_STASH_PORT:-5044}"
+      - "${LOGS_LOGSTASH_PORT:-5044}"
       - "9600"
     deploy:
       <<: *common-restart-policy
