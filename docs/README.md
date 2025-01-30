@@ -34,5 +34,5 @@
 ## Карта сети
 
 <p align="center">
-  <img src="https://github.com/P90Master/steamdb/docs/img/network_map.png" alt="Network Map">
+  <img src="https://github.com/P90Master/steamdb/blob/main/docs/img/network_map.png" alt="Network Map">
 </p>
