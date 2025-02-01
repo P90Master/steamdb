@@ -46,7 +46,7 @@ class TaskManager(metaclass=TaskManagerMeta):
     ):
         self.messenger_channel = messenger_channel
         self.backend_api_client = backend_api_client
-        self.steam_api_client = steam_api_client
+        self.steam_api_client = steam_api_client  # FIXME: dead code
         self.logger = logger if logger else get_logger(settings, __name__)
 
     def execute_task(self, task: callable) -> callable:
