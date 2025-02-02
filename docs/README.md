@@ -1,6 +1,7 @@
 # SteamDB
 
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![python](https://img.shields.io/badge/Python-3.12-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
 [![build](https://github.com/P90Master/steamdb/workflows/CI/badge.svg)](https://github.com/steamdb/steamdb/actions)
 
 _Автономная распределенная система для сбора, агрегации и хранения истории цен в Steam_
@@ -35,7 +36,7 @@ _Сервис SteamDB автономно мигрирует данные о пр
 
 - [Worker](WORKER.md)
 - [Orchestrator](ORCHESTRATOR.md)
-- [Backend]()
+- [Backend](BACKEND.md)
 - [Full Text Search]()
 - [Auth]()
 - [Logs]()

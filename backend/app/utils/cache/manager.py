@@ -7,8 +7,6 @@ from .coders import JsonCoder
 
 
 class CacheManager:
-    # TODO: DRY - should this be a pip package?
-
     _backend: ClassVar[Optional[Backend]] = None
     _prefix: ClassVar[Optional[str]] = None
     _expire: ClassVar[Optional[int]] = None
