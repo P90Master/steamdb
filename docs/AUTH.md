@@ -25,6 +25,16 @@
 
 **Важно:** API Auth-сервера считается внутренним и недоступен извне при стандартном деплое (см. пункт [Deploy](README.md#Deploy)).
 
+## Алгоритм Аутентификации
+
+Демонстрация на примере визуализации алгоритма отправки worker'ом пакета с данными об приложении в Backend:
+
+<p align="center">
+  <img src="https://github.com/P90Master/steamdb/blob/main/docs/img/auth_worker_algorithm.png" alt="Worker->Backend pipeline">
+</p>
+
+## Admin-Панель
+
 Имеется **Admin-панель** по адресу `http://127.0.0.1:5000/admin/`, доступная извне. В панели можно управлять клиентами, токенами, разрешениями и объединять их в роли:
 
 <p align="center">
@@ -52,14 +62,6 @@
 <p align="center">
   <b>Управление Пользователями</b>
   <img src="https://github.com/P90Master/steamdb/blob/main/docs/img/auth_admin_users.png" alt="Admin Panel Users">
-</p>
-
-## Алгоритм Аутентификации
-
-Демонстрация на примере визуализации алгоритма отправки worker'ом пакета с данными об приложении в Backend:
-
-<p align="center">
-  <img src="https://github.com/P90Master/steamdb/blob/main/docs/img/auth_worker_algorithm.png" alt="Worker->Backend pipeline">
 </p>
 
 ## Кэширование
