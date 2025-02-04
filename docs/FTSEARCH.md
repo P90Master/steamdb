@@ -1,5 +1,3 @@
-from etl.pipeline.queues import InMemoryQueuefrom queue import Queue
-
 # Full Text Search
 
 Сервис непрерывной идексации данных из основной базы в полнотекстовом индексе [Elasticsearch](https://www.elastic.co/). Используется для реализации полнотекстового поиска в Backend.
