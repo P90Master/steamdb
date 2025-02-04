@@ -8,7 +8,7 @@
 - [MongoDB](https://www.mongodb.com/) - NoSQL документоориентированная БД - основная база проекта
 - [Elasticsearch](https://www.elastic.co/) - Система поиска / Полнотекстовый индекс
 - ~~[PostgreSQL](https://www.postgresql.org/) - SQL БД для Backend'a~~ Использовалась в старой версии Backend на [Django](https://www.djangoproject.com/)
-- [Redis](https://redis.io/) - NoSQL key:value хранилище для кэша
+- [Redis](https://redis.io/) - Key:Value хранилище для кэша
 - [Beanie](https://beanie-odm.dev/) - ODM для MongoDB
 - [Pydantic](https://pydantic-docs.helpmanual.io/) - Сериализация и валидация для FastAPI и [pydantic-settings](https://pydantic-docs.helpmanual.io/usage/settings/) для работы с переменными окружения
 - [Aiohttp](https://aiohttp.readthedocs.io/en/stable/) - Для асинхронных HTTP-запросов к сервисам **Auth** и **Orchestrator**
@@ -88,7 +88,7 @@ GET http://127.0.0.1:80/api/v1/apps/292030
 ```json
 GET http://127.0.0.1:80/api/v1/apps?discount__lte=10&is_free=false&is_available_in_countries=RU&search=valve&size=1
 
-
+{
     "results": [
         {
             "id": 10,
@@ -167,6 +167,41 @@ GET http://127.0.0.1:80/api/v1/apps?discount__lte=10&is_free=false&is_available_
 
 Ниже приведены особенности реализации этого Backend'a, отличные от обычного FastAPI приложения:
 
+## Кастомный механизм разграничения прав
+
+Используется собственный механизм авторизации, похожий на Permissions из Django, созданный под конкретно текущий проект специально для работы с OAuth2.0 Scopes. 
+
+```python
+from app.auth import Permissions
+
+
+app = FastAPI()
+
+
+@app.post('', status_code=201, response_model=ItemSchema)
+async def create_item(item_data: ItemSchema, _ = Depends(Permissions.can_create)):
+    await raise_if_item_already_exists(item_data.id)
+    return await Item(**app_data.model_dump()).insert()
+```
+
+Использует DI-механизм FastAPI, асбтрагируя эндпоинт от логики проверки прав.
+
+Позволяет гибко конкатенировать права и объединять их в роли:
+
+```python
+class CanRead(IsAuthenticatedAndHasScopes):
+    SCOPES = Scope.READ
+
+class IsStaff(CanRead):
+    SCOPES = (Scope.CREATE, Scope.UPDATE, Scope.DELETE)
+```
+
+Для доступа к эндпоинту с требованием наличия права `IsStaff` пользователь должен быть аутентифицирован и иметь scope `READ` и хотя бы один из scope (`CREATE`, `UPDATE`, `DELETE`). (см. [код](https://github.com/P90Master/steamdb/blob/main/backend/app/auth/permissions.py#L31))
+
+Scopes в объект `request` добавляет кастомная `AuthMiddleware` - она достает access-токен из запроса и запрашивает данные о нем у Auth-сервера, помещая полученные scopes в объект `request.user.scopes`
+
+**Мотивация:** Отсутствие адекватных альтернатив.
+
 ## Кастомное кэширование
 
 Используется собственный механизм кэширования `CacheManager`, по способу применения похожий на стандартный механизм кэширования в Django:
@@ -213,44 +248,9 @@ async def get_item(item_id: Annotated[int, Field(gt=0)]):
     return ItemSchema(**item.model_dump())
 ```
 
-Архитектура `CacheManager` модульная и поддерживает любые реализации бэкенда (по дефолту имеется `RedisBackend`) и кодировщика (по дефолту имеется `JsonCoder`)
+Архитектура `CacheManager` модульная и поддерживает любые реализации бэкенда (по дефолту имеется `RedisBackend`) и кодировщика (по дефолту имеется `JsonCoder`) (см. [код](https://github.com/P90Master/steamdb/blob/main/backend/app/utils/cache/manager.py#L9)).
 
 **Мотивация:** Имеющиеся инструменты кэширования для FastAPI в основном предоставляют только декораторы для всего эндпоинта, что не дает полного контроля над процессом кэширования.
-
-## Кастомный механизм разграничения прав
-
-Используется собственный механизм авторизации, похожий на Permissions из Django, созданный под конкретно текущий проект специально для работы с OAuth2.0 Scopes. 
-
-```python
-from app.auth import Permissions
-
-
-app = FastAPI()
-
-
-@app.post('', status_code=201, response_model=ItemSchema)
-async def create_item(item_data: ItemSchema, _ = Depends(Permissions.can_create)):
-    await raise_if_item_already_exists(item_data.id)
-    return await Item(**app_data.model_dump()).insert()
-```
-
-Использует DI-механизм FastAPI, асбтрагируя эндпоинт от логики проверки прав.
-
-Позволяет гибко конкатенировать права и объединять их в роли:
-
-```python
-class CanRead(IsAuthenticatedAndHasScopes):
-    SCOPES = Scope.READ
-
-class IsStaff(CanRead):
-    SCOPES = (Scope.CREATE, Scope.UPDATE, Scope.DELETE)
-```
-
-Для доступа к эндпоинту с требованием наличия права `IsStaff` пользователь должен быть аутентифицирован и иметь scope `READ` и хотя бы один из scope (`CREATE`, `UPDATE`, `DELETE`).
-
-Scopes в объект `request` добавляет кастомная `AuthMiddleware` - она достает access-токен из запроса и запрашивает данные о нем у Auth-сервера, помещая полученные scopes в объект `request.user.scopes`
-
-**Мотивация:** Отсутствие адекватных альтернатив.
 
 ## Модифицированный `fastapi-filter`
 
@@ -296,9 +296,13 @@ class AppFilter(Filter):
         custom_ordering_fields = ("discount", )
 ```
 
-Дает возможность реализовывать нестандартные и сложные сценарии фильтрации и сортировки, не нарушая общий интерфейс либы.
+Дает возможность реализовывать нестандартные и сложные сценарии фильтрации и сортировки, не нарушая общий интерфейс либы. (см. [код](https://github.com/P90Master/steamdb/blob/main/backend/app/utils/filters.py#L33))
 
 С помощью этой модификации был добавлен фильтр `search` - полнотекстовый поиск, использующий интеграцию с Elasticsearch, скрытую за интерфейсом `Index`.
+
+## Mongo Express
+
+В DEV-режиме на `MONGO_GUI_PORT:-8081` порту поднимается сервис [MongoExpress](https://github.com/mongo-express/mongo-express) для визуализации содержимого основной БД.
 
 ## TODO:
 

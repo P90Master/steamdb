@@ -39,7 +39,7 @@ _Сервис SteamDB автономно мигрирует данные о пр
 - [Backend](BACKEND.md)
 - [Full Text Search](FTSEARCH.md)
 - [Auth](AUTH.md)
-- [Logs]()
+- [Logs](LOGS.md)
 
 ## Карта сети
 

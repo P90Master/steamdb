@@ -24,7 +24,7 @@
 в качестве очереди между ними используется `InMemoryQueue` с бекендом shared-memory `multiprocessing.Queue`. Такое решение обусловлено тем, что процесс **Transform** довольно примитивен,
 а использование внешней очереди только вызовет накладные расходы на передачу по сети.
 
-Однако это легко изменить, т.к. pipeline-компоненты работают с абстрактным интерфейсом очередей `(input_queue: AbstractQueue, output_queue: AbstractQueue)` - достаточно подменить `InMemoryQueue` на `RedisQueue` с бекендом `redis`.
+Однако это легко изменить, т.к. pipeline-компоненты работают с абстрактным интерфейсом очередей `(input_queue: AbstractQueue, output_queue: AbstractQueue)` - достаточно подменить `InMemoryQueue` на `RedisQueue` с бекендом `redis`. (см. [код](https://github.com/P90Master/steamdb/blob/main/etl/etl/pipeline/queues.py#L27))
 
 В **Transform > Load** уже используется внешняя очередь `RedisQueue`.
 
@@ -89,6 +89,10 @@ time.sleep(10)
 stop_signal.set()
 pipeline.join()
 ```
+
+## Kibana
+
+В DEV-режиме на `НАДО_ЗАВЕСТИ_ENV_ПЕРЕМЕННУЮ_ДЛЯ_ЭТОГО:-5602` порту поднимается сервис [Kibana](https://www.elastic.co/products/kibana) для визуализации содержимого индекса (Надо создать Data View c индекс-паттерном `steam-apps`).
 
 ## TODO:
 

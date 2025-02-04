@@ -1,6 +1,6 @@
 # Auth Server
 
-Сервис, отвечающий за аутентификацию других сервисов в системе SteamDB. Выдает access и refresh токены для сервисов и предоставляет о них информацию. Работает по стандарту **OAuth 2.0 Client Credentials Flow** [RFC 6749](https://www.rfc-editor.org/rfc/rfc6749#section-1.3.4).
+Сервис, отвечающий за аутентификацию других сервисов в системе SteamDB. Выдает access и refresh токены и предоставляет о них информацию. Работает по стандарту **OAuth 2.0 Client Credentials Flow** [RFC 6749](https://www.rfc-editor.org/rfc/rfc6749#section-1.3.4).
 
 ## Стек
 
