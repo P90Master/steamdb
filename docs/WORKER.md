@@ -7,7 +7,7 @@
 
 - [Celery](https://docs.celeryq.dev/en/stable/) - фреймворк для асинхронного выполнения задач / асинхронная очередь задач
 - [Redis](https://redis.io/) - брокер сообщений для Celery
-- [Pika](https://pika.readthedocs.io/en/stable/) - биндинг RabbitMQ для взаимодействия с сервисом-оркестратором
+- [Pika](https://pika.readthedocs.io/en/stable/) - биндинг [RabbitMQ](https://www.rabbitmq.com/) для взаимодействия с сервисом-оркестратором
 - [Pydantic](https://pydantic-docs.helpmanual.io/) - дочерняя либа [pydantic-settings](https://pydantic-docs.helpmanual.io/usage/settings/) для работы с переменными окружения
 - [Aiohttp](https://aiohttp.readthedocs.io/en/stable/) - асинхронные HTTP-запросы
 - [Requests](https://requests.readthedocs.io/en/latest/) - синхронные HTTP-запросы

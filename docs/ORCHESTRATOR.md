@@ -2,9 +2,9 @@
 
 Сервис, управляющий процессом миграции данных из Steam. Ставит задачи **Worker'ам** и ведет учет запрошенных приложений.
 
-## Стек:
+## Стек
 
-- [Pika](https://pika.readthedocs.io/en/stable/) - биндинг RabbitMQ для взаимодействия с сервисами-worker'ами
+- [Pika](https://pika.readthedocs.io/en/stable/) - биндинг [RabbitMQ](https://www.rabbitmq.com/) для взаимодействия с сервисами-worker'ами
 - [Celery](https://docs.celeryq.dev/en/stable/) - фреймворк для асинхронного выполнения задач / асинхронная очередь задач
 - [Celery Beat](https://docs.celeryq.dev/en/stable/userguide/periodic-tasks.html) - планировщик задач для Celery
 - [Redis](https://redis.io/) - брокер сообщений для Celery
@@ -14,7 +14,7 @@
 - [Pydantic](https://pydantic-docs.helpmanual.io/) - Сериализация и валидация для FastAPI и [pydantic-settings](https://pydantic-docs.helpmanual.io/usage/settings/) для работы с переменными окружения
 - [Uvicorn](https://www.uvicorn.org/) - ASGI-сервер для API
 
-## Как устроен:
+## Как устроен
 
 Оркестратор состоит из **4** процессов:
 
@@ -67,6 +67,8 @@ API используется для ручной отправки задач wor
 **Важно:** API Оркестратора считается внутренним и недоступен извне при стандартном деплое (см. пункт [Deploy](README.md#Deploy)). К нему можно обращаться используя специально отведенные для этого эндпоинты в Backend API.
 
 API требует аутентификации: наличия access_token в заголовке запроса, который обладает scope `orchestrator/tasks` (см. [Auth](AUTH.md)).
+
+Ограничение доступа осуществляется за счет кастомного механизма разграничения прав, аналогичного тому, что используется в Backend (см. [Механизм разграничения прав](BACKEND.md#кастомный-механизм-разграничения-прав)).
 
 Пользовательские задачи имеют повышенный приоритет.
 
