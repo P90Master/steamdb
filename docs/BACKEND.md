@@ -33,7 +33,135 @@ API состоит из **3** роутеров:
 - `POST /api/v1/package` - наличие scope `backend/package`
 - `/api/v1/tasks` - наличие scope `backend/tasks`
 
-Или достаточно иметь один admin-scope: `backend/*` или superuser-scope: `*/*` для всех выше перечисленных операций.
+Или достаточно иметь один admin-scope: `backend/*` или superuser-scope: `*` для всех выше перечисленных операций.
+
+## Вид данных
+<details>
+<summary>Пример GET-запроса</summary>
+
+```json
+GET http://127.0.0.1:80/api/v1/apps/292030
+
+{
+    "id": 292030,
+    "name": "The Witcher 3: Wild Hunt",
+    "type": "game",
+    "short_description": "You are Geralt of Rivia, mercenary monster slayer. Before you stands a war-torn, monster-infested continent you can explore at will. Your current contract? Tracking down Ciri — the Child of Prophecy, a living weapon that can alter the shape of the world.",
+    "is_free": false,
+    "developers": [
+        "CD PROJEKT RED"
+    ],
+    "publishers": [
+        "CD PROJEKT RED"
+    ],
+    "total_recommendations": 758046,
+    "prices": {
+        "US": {
+            "is_available": true,
+            "currency": "USD",
+            "price_story": {
+                "results": [
+                    {
+                        "timestamp": "2025-02-04T19:57:39.394000+03:00",
+                        "price": 39.99,
+                        "discount": 0
+                    },
+                    {
+                        "timestamp": "2025-01-26T23:37:43.621000+03:00",
+                        "price": 7.99,
+                        "discount": 80
+                    }
+                ],
+                "page": 1,
+                "size": 10,
+                "total": 2
+            }
+        }
+    }
+}
+```
+</details>
+
+<details>
+<summary>Пример LIST-запроса</summary>
+
+```json
+GET http://127.0.0.1:80/api/v1/apps?discount__lte=10&is_free=false&is_available_in_countries=RU&search=valve&size=1
+
+
+    "results": [
+        {
+            "id": 10,
+            "name": "Counter-Strike",
+            "type": "game",
+            "short_description": "Play the world's number 1 online action game. Engage in an incredibly realistic brand of terrorist warfare in this wildly popular team-based game. Ally with teammates to complete strategic missions. Take out enemy sites. Rescue hostages. Your role affects your team's success. Your team's success affects your role.",
+            "is_free": false,
+            "developers": [
+                "Valve"
+            ],
+            "publishers": [
+                "Valve"
+            ],
+            "total_recommendations": 157379,
+            "prices": {
+                "US": {
+                    "is_available": true,
+                    "currency": "USD",
+                    "price": 9.99,
+                    "discount": 0,
+                    "last_updated": "2025-01-26T23:43:16.255000+03:00"
+                },
+                "GB": {
+                    "is_available": true,
+                    "currency": "GBP",
+                    "price": 7.19,
+                    "discount": 0,
+                    "last_updated": "2025-01-26T23:43:17.765000+03:00"
+                },
+                "CN": {
+                    "is_available": true,
+                    "currency": "CNY",
+                    "price": 37.0,
+                    "discount": 0,
+                    "last_updated": "2025-01-26T23:43:19.373000+03:00"
+                },
+                "RU": {
+                    "is_available": true,
+                    "currency": "RUB",
+                    "price": 259.0,
+                    "discount": 0,
+                    "last_updated": "2025-01-26T23:43:20.887000+03:00"
+                },
+                "DE": {
+                    "is_available": true,
+                    "currency": "EUR",
+                    "price": 8.19,
+                    "discount": 0,
+                    "last_updated": "2025-01-26T23:43:22.293000+03:00"
+                },
+                "JP": {
+                    "is_available": true,
+                    "currency": "JPY",
+                    "price": 1010.0,
+                    "discount": 0,
+                    "last_updated": "2025-01-26T23:43:24.006000+03:00"
+                },
+                "BR": {
+                    "is_available": true,
+                    "currency": "BRL",
+                    "price": 20.69,
+                    "discount": 0,
+                    "last_updated": "2025-01-26T23:43:25.511000+03:00"
+                }
+            }
+        }
+    ],
+    "page": 1,
+    "size": 1,
+    "total": 10
+}
+```
+</details>
 
 ## Особенности
 

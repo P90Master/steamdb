@@ -18,7 +18,7 @@ class AppFilter(Filter):
     type__in: Optional[list[str]] = None
     is_free: Optional[bool] = None
     is_available_in_countries__method: Annotated[
-        Optional[list[str]],
+        Optional[str],
         Field(alias='is_available_in_countries')
     ] = None
     total_recommendations: Annotated[Optional[int], Field(ge=0)] = None
