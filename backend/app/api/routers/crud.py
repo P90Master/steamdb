@@ -1,3 +1,5 @@
+import asyncio
+import copy
 from datetime import datetime
 from typing import Annotated, Iterable
 
@@ -108,15 +110,17 @@ async def list_apps(
 
     filtered_apps_query = await filters.filter(apps_query)
     sorted_apps_query = await filters.sort(filtered_apps_query)
-    apps = await sorted_apps_query.to_list()
 
-    offset = (page - 1) * size
+    skip = (page - 1) * size
+    paginated_apps_query = copy.deepcopy(sorted_apps_query).skip(skip).limit(size)
+    apps, total = await asyncio.gather(paginated_apps_query.to_list(), sorted_apps_query.count())
+
     compact_apps = convert_apps_list_to_compact_format(apps)
     return PaginatedAppListSchema(
-        results=compact_apps[offset:offset + size],
+        results=compact_apps,
         page=page,
         size=size,
-        total=len(compact_apps)
+        total=total
     )
 
 
